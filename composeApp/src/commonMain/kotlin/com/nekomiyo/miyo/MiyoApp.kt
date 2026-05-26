@@ -17,6 +17,8 @@ fun MiyoApp() {
         when (appState.route) {
             MiyoRoute.Hub -> HubScreen(
                 projects = appState.projectSummaries,
+                selectedTab = appState.hubTab,
+                onTabSelected = appState::selectHubTab,
                 onCreateProject = appState::createProject,
                 onOpenProject = appState::openProject
             )

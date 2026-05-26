@@ -82,14 +82,17 @@ fun EditorShell(
             .miyoPatternBackground(baseColor = MiyoColors.InkSoft)
     ) {
         val compactEditor = maxHeight < 560.dp || maxWidth < 760.dp
-        val showSidePanels = maxWidth >= 1120.dp && !compactEditor
         val chromePadding = if (compactEditor) MiyoSpacing.xs else MiyoSpacing.md
         Row(modifier = Modifier.fillMaxSize()) {
-            EditorRail(
+            EditorSidebar(
+                project = project,
                 selectedMode = selectedMode,
                 simpleTab = simpleTab,
+                selectedBlockId = selectedBlockId,
+                selectedSceneId = selectedSceneId,
                 compact = compactEditor,
                 onModeSelected = onModeSelected,
+                onSimpleTabSelected = onSimpleTabSelected,
                 onAssetKindSelected = onAssetKindSelected,
                 onBackToHub = onBackToHub
             )
@@ -113,57 +116,26 @@ fun EditorShell(
                         onModeSelected = onModeSelected
                     )
                 }
-                if (showSidePanels) {
-                    Row(
-                        modifier = Modifier.weight(1f),
-                        horizontalArrangement = Arrangement.spacedBy(MiyoSpacing.sm)
-                    ) {
-                        ProjectTreePanel(
-                            project = project,
-                            selectedBlockId = selectedBlockId,
-                            selectedSceneId = selectedSceneId,
-                            selectedAssetKind = selectedAssetKind,
-                            onSceneSelected = onSceneSelected,
-                            onAssetKindSelected = onAssetKindSelected,
-                            modifier = Modifier.width(236.dp).fillMaxHeight()
-                        )
-                        EditorWorkspace(
-                            project = project,
-                            diagnosticsCount = diagnostics.size,
-                            selectedMode = selectedMode,
-                            simpleTab = simpleTab,
-                            selectedBlockId = selectedBlockId,
-                            selectedSceneId = selectedSceneId,
-                            selectedActionId = selectedActionId,
-                            selectedAssetKind = selectedAssetKind,
-                            onSimpleTabSelected = onSimpleTabSelected,
-                            onActionSelected = onActionSelected,
-                            modifier = Modifier.weight(1f).fillMaxHeight()
-                        )
-                        InspectorPanel(
-                            project = project,
-                            simpleTab = simpleTab,
-                            selectedActionId = selectedActionId,
-                            selectedAssetKind = selectedAssetKind,
-                            modifier = Modifier.width(284.dp).fillMaxHeight()
-                        )
-                    }
-                } else {
-                    EditorWorkspace(
-                        project = project,
-                        diagnosticsCount = diagnostics.size,
-                        selectedMode = selectedMode,
-                        simpleTab = simpleTab,
-                        selectedBlockId = selectedBlockId,
-                        selectedSceneId = selectedSceneId,
-                        selectedActionId = selectedActionId,
-                        selectedAssetKind = selectedAssetKind,
-                        onSimpleTabSelected = onSimpleTabSelected,
-                        onActionSelected = onActionSelected,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-                OutputDrawer(diagnostics = diagnostics, compact = compactEditor)
+                EditorWorkspace(
+                    project = project,
+                    selectedMode = selectedMode,
+                    simpleTab = simpleTab,
+                    selectedBlockId = selectedBlockId,
+                    selectedSceneId = selectedSceneId,
+                    selectedActionId = selectedActionId,
+                    selectedAssetKind = selectedAssetKind,
+                    onSimpleTabSelected = onSimpleTabSelected,
+                    onActionSelected = onActionSelected,
+                    modifier = Modifier.weight(1f)
+                )
+                EditorContextBar(
+                    project = project,
+                    diagnostics = diagnostics,
+                    selectedBlockId = selectedBlockId,
+                    selectedSceneId = selectedSceneId,
+                    simpleTab = simpleTab,
+                    compact = compactEditor
+                )
             }
         }
     }
@@ -172,7 +144,6 @@ fun EditorShell(
 @Composable
 private fun EditorWorkspace(
     project: MiyoProject,
-    diagnosticsCount: Int,
     selectedMode: EditorMode,
     simpleTab: SimpleEditorTab,
     selectedBlockId: String?,
@@ -184,7 +155,7 @@ private fun EditorWorkspace(
     modifier: Modifier = Modifier
 ) {
     when (selectedMode) {
-        EditorMode.Simple -> SimpleModePanel(
+        EditorMode.Edit -> SimpleModePanel(
             project = project,
             selectedTab = simpleTab,
             selectedSceneId = selectedSceneId,
@@ -200,21 +171,19 @@ private fun EditorWorkspace(
             selectedSceneId = selectedSceneId,
             modifier = modifier
         )
-        EditorMode.NodeConnect -> NodeConnectPanel(
-            project = project,
-            diagnosticsCount = diagnosticsCount,
-            modifier = modifier
-        )
-        EditorMode.Code -> CodeModePanel(project = project, modifier = modifier)
     }
 }
 
 @Composable
-private fun EditorRail(
+private fun EditorSidebar(
+    project: MiyoProject,
     selectedMode: EditorMode,
     simpleTab: SimpleEditorTab,
+    selectedBlockId: String?,
+    selectedSceneId: String?,
     compact: Boolean,
     onModeSelected: (EditorMode) -> Unit,
+    onSimpleTabSelected: (SimpleEditorTab) -> Unit,
     onAssetKindSelected: (AssetKind) -> Unit,
     onBackToHub: () -> Unit,
     modifier: Modifier = Modifier
@@ -222,67 +191,133 @@ private fun EditorRail(
     Column(
         modifier = modifier
             .fillMaxHeight()
-            .width(if (compact) 54.dp else 76.dp)
+            .width(if (compact) 154.dp else 190.dp)
             .background(MiyoColors.Ink)
             .border(MiyoStroke.hairline, MiyoColors.Outline)
-            .padding(vertical = if (compact) MiyoSpacing.xs else MiyoSpacing.md, horizontal = MiyoSpacing.xs),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(if (compact) MiyoSpacing.xxs else MiyoSpacing.xs)
+            .padding(if (compact) MiyoSpacing.xs else MiyoSpacing.sm),
+        verticalArrangement = Arrangement.spacedBy(MiyoSpacing.xs)
     ) {
-        MiyoLogo(size = if (compact) 34.dp else 44.dp)
-        Spacer(modifier = Modifier.height(if (compact) MiyoSpacing.xs else MiyoSpacing.md))
-        RailButton(MiyoIcons.Timeline, "Scenes", compact = compact, selected = selectedMode == EditorMode.Simple && simpleTab == SimpleEditorTab.Timeline) {
-            onModeSelected(EditorMode.Simple)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            MiyoLogo(size = if (compact) 30.dp else 36.dp)
+            Spacer(Modifier.width(MiyoSpacing.xs))
+            Column {
+                Text("Workspace", color = MiyoColors.TextPrimary, style = MaterialTheme.typography.labelLarge)
+                Text(project.displayTitle(), color = MiyoColors.TextMuted, style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
         }
-        RailButton(MiyoIcons.Assets, "Assets", compact = compact, selected = selectedMode == EditorMode.Simple && simpleTab.assetKind != null) {
-            onModeSelected(EditorMode.Simple)
-            onAssetKindSelected(AssetKind.Character)
-        }
-        RailButton(MiyoIcons.Preview, "Preview", compact = compact, selected = selectedMode == EditorMode.Preview) {
-            onModeSelected(EditorMode.Preview)
-        }
-        RailButton(MiyoIcons.NodeMode, "Node Connect", compact = compact, selected = selectedMode == EditorMode.NodeConnect) {
-            onModeSelected(EditorMode.NodeConnect)
-        }
-        RailButton(MiyoIcons.CodeMode, "Code", compact = compact, selected = selectedMode == EditorMode.Code) {
-            onModeSelected(EditorMode.Code)
-        }
-        Spacer(modifier = Modifier.weight(1f))
-        IconButton(
-            onClick = onBackToHub,
+        Column(
             modifier = Modifier
-                .clip(RoundedCornerShape(MiyoRadius.lg))
-                .background(MiyoColors.Surface)
-                .border(MiyoStroke.hairline, MiyoColors.Outline, RoundedCornerShape(MiyoRadius.lg))
+                .weight(1f)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(MiyoSpacing.xs)
         ) {
-            Icon(MiyoIcons.Back, contentDescription = "Hub", tint = MiyoColors.TextSecondary)
+            SidebarSection("Mode")
+            SidebarItem(MiyoIcons.SimpleMode, "Kocho edit", selectedMode == EditorMode.Edit, onClick = { onModeSelected(EditorMode.Edit) })
+            SidebarItem(MiyoIcons.Preview, "Preview", selectedMode == EditorMode.Preview, onClick = { onModeSelected(EditorMode.Preview) })
+
+            SidebarSection("Story")
+            SidebarItem(MiyoIcons.Timeline, "Chapters", simpleTab == SimpleEditorTab.Timeline) {
+                onModeSelected(EditorMode.Edit)
+                onSimpleTabSelected(SimpleEditorTab.Timeline)
+            }
+            SidebarItem(MiyoIcons.TextAction, "Scenes", simpleTab == SimpleEditorTab.Timeline) {
+                onModeSelected(EditorMode.Edit)
+                onSimpleTabSelected(SimpleEditorTab.Timeline)
+            }
+            SidebarItem(MiyoIcons.ChoiceAction, "Choices", false) {
+                onModeSelected(EditorMode.Edit)
+                onSimpleTabSelected(SimpleEditorTab.Timeline)
+            }
+
+            SidebarSection("Logic")
+            SidebarItem(MiyoIcons.Settings, "Variables", simpleTab == SimpleEditorTab.Variables) {
+                onModeSelected(EditorMode.Edit)
+                onSimpleTabSelected(SimpleEditorTab.Variables)
+            }
+            SidebarItem(MiyoIcons.Back, "Conditions", simpleTab == SimpleEditorTab.Conditions) {
+                onModeSelected(EditorMode.Edit)
+                onSimpleTabSelected(SimpleEditorTab.Conditions)
+            }
+
+            SidebarSection("Assets")
+            SidebarItem(MiyoIcons.Assets, "File manager", simpleTab == SimpleEditorTab.Files) {
+                onModeSelected(EditorMode.Edit)
+                onSimpleTabSelected(SimpleEditorTab.Files)
+            }
+            SidebarItem(MiyoIcons.CharacterAction, "Characters", simpleTab == SimpleEditorTab.Characters) {
+                onModeSelected(EditorMode.Edit)
+                onAssetKindSelected(AssetKind.Character)
+            }
+            SidebarItem(MiyoIcons.BackgroundAction, "Scenery", simpleTab == SimpleEditorTab.Scenery) {
+                onModeSelected(EditorMode.Edit)
+                onAssetKindSelected(AssetKind.Scenery)
+            }
+            SidebarItem(MiyoIcons.SoundAction, "Audio", simpleTab == SimpleEditorTab.Bgm || simpleTab == SimpleEditorTab.Sfx) {
+                onModeSelected(EditorMode.Edit)
+                onAssetKindSelected(AssetKind.Bgm)
+            }
+
+            SidebarSection("UI")
+            SidebarItem(MiyoIcons.Inspector, "Message boxes", simpleTab == SimpleEditorTab.Gui) {
+                onModeSelected(EditorMode.Edit)
+                onSimpleTabSelected(SimpleEditorTab.Gui)
+            }
         }
+        SidebarStatus(project = project, selectedBlockId = selectedBlockId, selectedSceneId = selectedSceneId)
+        SidebarItem(MiyoIcons.Back, "Home", false, onClick = onBackToHub)
     }
 }
 
 @Composable
-private fun RailButton(
+private fun SidebarSection(label: String) {
+    Text(
+        text = label,
+        color = MiyoColors.TextMuted,
+        style = MaterialTheme.typography.labelMedium,
+        modifier = Modifier.padding(top = MiyoSpacing.xs, start = MiyoSpacing.xs)
+    )
+}
+
+@Composable
+private fun SidebarItem(
     icon: ImageVector,
     label: String,
-    compact: Boolean,
-    selected: Boolean = false,
+    selected: Boolean,
     onClick: () -> Unit
 ) {
-    val tint = if (selected) MiyoColors.Petal else MiyoColors.TextMuted
-    Box(
+    val color = if (selected) MiyoColors.Petal else MiyoColors.TextSecondary
+    Row(
         modifier = Modifier
-            .size(if (compact) 38.dp else 48.dp)
-            .clip(RoundedCornerShape(MiyoRadius.lg))
+            .fillMaxWidth()
+            .height(34.dp)
+            .clip(RoundedCornerShape(MiyoRadius.md))
             .background(if (selected) MiyoColors.Petal.copy(alpha = 0.14f) else Color.Transparent)
             .border(
-                MiyoStroke.hairline,
-                if (selected) MiyoColors.Petal.copy(alpha = 0.5f) else Color.Transparent,
-                RoundedCornerShape(MiyoRadius.lg)
+                width = MiyoStroke.hairline,
+                color = if (selected) MiyoColors.Petal.copy(alpha = 0.5f) else Color.Transparent,
+                shape = RoundedCornerShape(MiyoRadius.md)
             )
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
+            .clickable(onClick = onClick)
+            .padding(horizontal = MiyoSpacing.xs),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(icon, contentDescription = label, tint = tint, modifier = Modifier.size(if (compact) 20.dp else 24.dp))
+        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(17.dp))
+        Spacer(Modifier.width(MiyoSpacing.xs))
+        Text(label, color = color, style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(">", color = MiyoColors.TextMuted, style = MaterialTheme.typography.labelMedium)
+    }
+}
+
+@Composable
+private fun SidebarStatus(project: MiyoProject, selectedBlockId: String?, selectedSceneId: String?) {
+    val block = project.selectedBlock(selectedBlockId)
+    val scene = project.selectedScene(selectedBlockId, selectedSceneId)
+    MiyoPanel(containerColor = MiyoColors.Surface, contentPadding = PaddingValues(MiyoSpacing.xs)) {
+        Column(verticalArrangement = Arrangement.spacedBy(MiyoSpacing.xxs)) {
+            Text("Current", color = MiyoColors.TextMuted, style = MaterialTheme.typography.labelMedium)
+            Text(block?.label ?: "No chapter", color = MiyoColors.TextPrimary, style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(scene?.title ?: "No scene", color = MiyoColors.TextSecondary, style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
     }
 }
 
@@ -521,8 +556,17 @@ private fun InspectorField(label: String, value: String) {
 }
 
 @Composable
-private fun OutputDrawer(diagnostics: List<MiyoDiagnostic>, compact: Boolean) {
+private fun EditorContextBar(
+    project: MiyoProject,
+    diagnostics: List<MiyoDiagnostic>,
+    selectedBlockId: String?,
+    selectedSceneId: String?,
+    simpleTab: SimpleEditorTab,
+    compact: Boolean
+) {
     val firstDiagnostic = diagnostics.firstOrNull()
+    val block = project.selectedBlock(selectedBlockId)
+    val scene = project.selectedScene(selectedBlockId, selectedSceneId)
     val tint = when (firstDiagnostic?.severity) {
         DiagnosticSeverity.Error -> MiyoColors.Danger
         DiagnosticSeverity.Warning -> MiyoColors.Honey
@@ -542,20 +586,22 @@ private fun OutputDrawer(diagnostics: List<MiyoDiagnostic>, compact: Boolean) {
             horizontalArrangement = Arrangement.spacedBy(if (compact) MiyoSpacing.sm else MiyoSpacing.lg),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            MiyoIconLabel(
-                icon = if (diagnostics.isEmpty()) MiyoIcons.Preview else MiyoIcons.Warning,
-                label = if (diagnostics.isEmpty()) "Ready" else "Problems",
-                iconTint = tint,
-                textColor = MiyoColors.TextPrimary
-            )
-            Text(
-                text = firstDiagnostic?.message ?: "Project data is valid for the current schema.",
-                color = MiyoColors.TextSecondary,
-                style = MaterialTheme.typography.bodySmall
-            )
+            MiyoPill("Vol 100%", icon = MiyoIcons.SoundAction, contentColor = MiyoColors.Lagoon)
+            MiyoPill(block?.label ?: "Chapter", icon = MiyoIcons.Timeline, contentColor = MiyoColors.Petal)
+            MiyoPill(scene?.title ?: "Scene", icon = MiyoIcons.TextAction, contentColor = MiyoColors.Mint)
+            MiyoPill(simpleTab.label, icon = MiyoIcons.Inspector, contentColor = MiyoColors.TextSecondary)
+            if (!compact) {
+                Text(
+                    text = firstDiagnostic?.message ?: "Ready",
+                    color = tint,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
             Spacer(Modifier.weight(1f))
             if (!compact) {
-                MiyoPill("Output", icon = MiyoIcons.CodeMode)
+                MiyoPill(project.editor.autosaveLabel, icon = MiyoIcons.Export, contentColor = MiyoColors.Mint)
             }
         }
     }

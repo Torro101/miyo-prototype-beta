@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,7 +23,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -40,6 +40,7 @@ import com.nekomiyo.miyo.ui.design.MiyoLogo
 import com.nekomiyo.miyo.ui.design.MiyoPanel
 import com.nekomiyo.miyo.ui.design.MiyoPill
 import com.nekomiyo.miyo.ui.design.miyoPatternBackground
+import com.nekomiyo.miyo.ui.state.HubTab
 import com.nekomiyo.miyo.ui.theme.MiyoColors
 import com.nekomiyo.miyo.ui.theme.MiyoRadius
 import com.nekomiyo.miyo.ui.theme.MiyoSpacing
@@ -48,6 +49,8 @@ import com.nekomiyo.miyo.ui.theme.MiyoStroke
 @Composable
 fun HubScreen(
     projects: List<ProjectSummary>,
+    selectedTab: HubTab,
+    onTabSelected: (HubTab) -> Unit,
     onCreateProject: () -> Unit,
     onOpenProject: (String) -> Unit,
     modifier: Modifier = Modifier
@@ -62,83 +65,125 @@ fun HubScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .widthIn(max = 680.dp)
-                .align(Alignment.TopCenter)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(if (compact) MiyoSpacing.sm else MiyoSpacing.md)
+                .widthIn(max = 720.dp)
+                .align(Alignment.TopCenter),
+            verticalArrangement = Arrangement.spacedBy(MiyoSpacing.sm)
         ) {
-            HubHeader(compact = compact)
-            SectionTitle("Library", "${projects.size} local projects")
-            if (compact) {
-                Button(
-                    onClick = onCreateProject,
-                    colors = ButtonDefaults.buttonColors(containerColor = MiyoColors.Petal, contentColor = MiyoColors.Ink)
-                ) {
-                    Icon(MiyoIcons.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Text("New project")
+            HubHeader(compact = compact, onCreateProject = onCreateProject)
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(MiyoSpacing.sm)
+            ) {
+                when (selectedTab) {
+                    HubTab.Home -> HomeContent(projects = projects, onCreateProject = onCreateProject, onOpenProject = onOpenProject)
+                    HubTab.Library -> LibraryContent(projects = projects, onOpenProject = onOpenProject)
+                    HubTab.Explore -> ExploreContent()
+                    HubTab.Settings -> SettingsContent()
                 }
             }
-            projects.forEachIndexed { index, project ->
-                ProjectCard(
-                    project = project,
-                    accent = if (index % 2 == 0) MiyoColors.Petal else MiyoColors.Lagoon,
-                    onOpenProject = onOpenProject
-                )
-            }
-            if (!compact) {
-                SectionTitle("Workshop", "Create and import")
-                WorkshopRow(onCreateProject = onCreateProject)
-                HubNav()
-            }
+            HubNav(selectedTab = selectedTab, onTabSelected = onTabSelected)
         }
     }
 }
 
 @Composable
-private fun HubHeader(compact: Boolean) {
+private fun HubHeader(compact: Boolean, onCreateProject: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            MiyoLogo(size = if (compact) 42.dp else 54.dp)
+            MiyoLogo(size = if (compact) 38.dp else 48.dp)
             Spacer(Modifier.width(MiyoSpacing.sm))
             Column {
                 Text(
                     text = "Nekomiyo",
-                    style = MaterialTheme.typography.headlineSmall,
+                    style = MaterialTheme.typography.titleLarge,
                     color = MiyoColors.TextPrimary,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "Local visual novel workspace",
+                    text = "Visual novel maker",
                     style = MaterialTheme.typography.labelLarge,
                     color = MiyoColors.TextSecondary
                 )
             }
         }
-        if (!compact) {
-            Row(horizontalArrangement = Arrangement.spacedBy(MiyoSpacing.xs)) {
-                HeaderButton(icon = MiyoIcons.Import, label = "Import")
-                HeaderButton(icon = MiyoIcons.Settings, label = "Settings")
-            }
+        Button(
+            onClick = onCreateProject,
+            contentPadding = PaddingValues(horizontal = MiyoSpacing.sm, vertical = MiyoSpacing.xs),
+            colors = ButtonDefaults.buttonColors(containerColor = MiyoColors.Petal, contentColor = MiyoColors.Ink)
+        ) {
+            Icon(MiyoIcons.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+            Text(if (compact) "New" else "New project")
         }
     }
 }
 
 @Composable
-private fun HeaderButton(icon: ImageVector, label: String) {
-    IconButton(
-        onClick = {},
-        modifier = Modifier
-            .clip(RoundedCornerShape(MiyoRadius.lg))
-            .background(MiyoColors.Surface.copy(alpha = 0.86f))
-            .border(MiyoStroke.hairline, MiyoColors.Outline, RoundedCornerShape(MiyoRadius.lg))
-            .size(42.dp)
-    ) {
-        Icon(icon, contentDescription = label, tint = MiyoColors.TextSecondary)
+private fun HomeContent(
+    projects: List<ProjectSummary>,
+    onCreateProject: () -> Unit,
+    onOpenProject: (String) -> Unit
+) {
+    MiyoPanel(containerColor = MiyoColors.SurfaceRaised) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(MiyoSpacing.xs)) {
+                Text("Continue", color = MiyoColors.TextPrimary, style = MaterialTheme.typography.titleMedium)
+                Text("Open a project or start a clean VN.", color = MiyoColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+            }
+            Button(
+                onClick = onCreateProject,
+                colors = ButtonDefaults.buttonColors(containerColor = MiyoColors.Lagoon, contentColor = MiyoColors.Ink)
+            ) {
+                Icon(MiyoIcons.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                Text("Blank")
+            }
+        }
     }
+    projects.take(2).forEachIndexed { index, project ->
+        ProjectRow(
+            project = project,
+            accent = if (index % 2 == 0) MiyoColors.Petal else MiyoColors.Lagoon,
+            onOpenProject = onOpenProject
+        )
+    }
+}
+
+@Composable
+private fun LibraryContent(projects: List<ProjectSummary>, onOpenProject: (String) -> Unit) {
+    SectionTitle("Library", "${projects.size} local projects")
+    projects.forEachIndexed { index, project ->
+        ProjectRow(
+            project = project,
+            accent = if (index % 2 == 0) MiyoColors.Petal else MiyoColors.Lagoon,
+            onOpenProject = onOpenProject
+        )
+    }
+}
+
+@Composable
+private fun ExploreContent() {
+    SectionTitle("Explore", "Templates and packs")
+    ExploreRow(MiyoIcons.Timeline, "Kocho-style starter", "Chapters, scenes, choices, and VN text boxes.", MiyoColors.Petal)
+    ExploreRow(MiyoIcons.Assets, "Background pack", "Register scenery, character sprites, audio, and GUI files.", MiyoColors.Lagoon)
+    ExploreRow(MiyoIcons.Settings, "Logic samples", "Variables, conditions, waits, and scene activation examples.", MiyoColors.Honey)
+}
+
+@Composable
+private fun SettingsContent() {
+    SectionTitle("Settings", "Workspace")
+    SettingsRow("Editor workflow", "Visual drag-and-drop")
+    SettingsRow("Script mode", "Hidden")
+    SettingsRow("Preview orientation", "Landscape editor")
+    SettingsRow("Autosave", "On")
 }
 
 @Composable
@@ -148,21 +193,13 @@ private fun SectionTitle(title: String, meta: String) {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Bottom
     ) {
-        Text(
-            text = title,
-            color = MiyoColors.TextPrimary,
-            style = MaterialTheme.typography.titleMedium
-        )
-        Text(
-            text = meta,
-            color = MiyoColors.TextMuted,
-            style = MaterialTheme.typography.labelMedium
-        )
+        Text(title, color = MiyoColors.TextPrimary, style = MaterialTheme.typography.titleMedium)
+        Text(meta, color = MiyoColors.TextMuted, style = MaterialTheme.typography.labelMedium)
     }
 }
 
 @Composable
-private fun ProjectCard(
+private fun ProjectRow(
     project: ProjectSummary,
     accent: Color,
     onOpenProject: (String) -> Unit
@@ -170,14 +207,11 @@ private fun ProjectCard(
     MiyoPanel(
         modifier = Modifier
             .fillMaxWidth()
-            .height(132.dp)
+            .height(112.dp)
             .clickable { onOpenProject(project.projectId) },
         containerColor = MiyoColors.SurfaceRaised
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             ProjectThumbnail(accent)
             Spacer(Modifier.width(MiyoSpacing.md))
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(MiyoSpacing.xs)) {
@@ -193,20 +227,11 @@ private fun ProjectCard(
                 Row(horizontalArrangement = Arrangement.spacedBy(MiyoSpacing.xs)) {
                     MiyoPill(project.autosaveLabel, containerColor = MiyoColors.InkSoft, contentColor = MiyoColors.Mint)
                     if (project.diagnosticsCount > 0) {
-                        MiyoPill("${project.diagnosticsCount} warnings", icon = MiyoIcons.Warning, contentColor = MiyoColors.Honey)
+                        MiyoPill("${project.diagnosticsCount}", icon = MiyoIcons.Warning, contentColor = MiyoColors.Honey)
                     }
                 }
             }
-            Button(
-                onClick = { onOpenProject(project.projectId) },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = accent,
-                    contentColor = MiyoColors.Ink
-                )
-            ) {
-                Icon(MiyoIcons.Preview, contentDescription = null, modifier = Modifier.size(16.dp))
-                Text("Open")
-            }
+            Icon(MiyoIcons.Preview, contentDescription = "Open", tint = accent, modifier = Modifier.size(24.dp))
         }
     }
 }
@@ -215,95 +240,80 @@ private fun ProjectCard(
 private fun ProjectThumbnail(accent: Color) {
     Box(
         modifier = Modifier
-            .size(72.dp)
+            .size(64.dp)
             .clip(RoundedCornerShape(MiyoRadius.lg))
             .background(MiyoColors.InkSoft)
             .border(MiyoStroke.hairline, accent.copy(alpha = 0.7f), RoundedCornerShape(MiyoRadius.lg)),
         contentAlignment = Alignment.Center
     ) {
-        Box(
-            modifier = Modifier
-                .size(38.dp)
-                .clip(RoundedCornerShape(MiyoRadius.md))
-                .background(accent.copy(alpha = 0.18f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(MiyoIcons.Timeline, contentDescription = null, tint = accent)
-        }
+        Icon(MiyoIcons.Timeline, contentDescription = null, tint = accent, modifier = Modifier.size(28.dp))
     }
 }
 
 @Composable
-private fun WorkshopRow(onCreateProject: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(MiyoSpacing.sm)
-    ) {
-        WorkshopTile(
-            icon = MiyoIcons.Add,
-            title = "Blank VN",
-            tint = MiyoColors.Petal,
-            modifier = Modifier.weight(1f),
-            onClick = onCreateProject
-        )
-        WorkshopTile(
-            icon = MiyoIcons.Assets,
-            title = "Asset Pack",
-            tint = MiyoColors.Lagoon,
-            modifier = Modifier.weight(1f),
-            onClick = {}
-        )
-    }
-}
-
-@Composable
-private fun WorkshopTile(
-    icon: ImageVector,
-    title: String,
-    tint: Color,
-    modifier: Modifier,
-    onClick: () -> Unit
-) {
-    MiyoPanel(
-        modifier = modifier.clickable(onClick = onClick),
-        containerColor = MiyoColors.Surface.copy(alpha = 0.92f)
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(MiyoSpacing.sm)) {
+private fun ExploreRow(icon: ImageVector, title: String, detail: String, tint: Color) {
+    MiyoPanel(modifier = Modifier.fillMaxWidth(), containerColor = MiyoColors.SurfaceRaised) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(24.dp))
-            Text(title, color = MiyoColors.TextPrimary, style = MaterialTheme.typography.labelLarge)
+            Spacer(Modifier.width(MiyoSpacing.md))
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(MiyoSpacing.xs)) {
+                Text(title, color = MiyoColors.TextPrimary, style = MaterialTheme.typography.titleMedium)
+                Text(detail, color = MiyoColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+            }
+            Text(">", color = MiyoColors.TextMuted, style = MaterialTheme.typography.titleMedium)
         }
     }
 }
 
 @Composable
-private fun HubNav() {
+private fun SettingsRow(label: String, value: String) {
+    MiyoPanel(modifier = Modifier.fillMaxWidth(), containerColor = MiyoColors.SurfaceRaised) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text(label, color = MiyoColors.TextPrimary, style = MaterialTheme.typography.bodyMedium)
+            MiyoPill(value, contentColor = MiyoColors.TextSecondary)
+        }
+    }
+}
+
+@Composable
+private fun HubNav(selectedTab: HubTab, onTabSelected: (HubTab) -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(MiyoRadius.lg))
-            .background(MiyoColors.SurfaceRaised.copy(alpha = 0.96f))
+            .background(MiyoColors.SurfaceRaised)
             .border(MiyoStroke.hairline, MiyoColors.Outline, RoundedCornerShape(MiyoRadius.lg))
             .padding(MiyoSpacing.xs),
-        horizontalArrangement = Arrangement.SpaceBetween
+        horizontalArrangement = Arrangement.spacedBy(MiyoSpacing.xs)
     ) {
-        HubNavItem(MiyoIcons.Library, "Library", selected = true, modifier = Modifier.weight(1f))
-        HubNavItem(MiyoIcons.Workshop, "Workshop", selected = false, modifier = Modifier.weight(1f))
-        HubNavItem(MiyoIcons.Settings, "Settings", selected = false, modifier = Modifier.weight(1f))
+        HubNavItem(MiyoIcons.Hub, "Home", HubTab.Home, selectedTab, onTabSelected, Modifier.weight(1f))
+        HubNavItem(MiyoIcons.Library, "Library", HubTab.Library, selectedTab, onTabSelected, Modifier.weight(1f))
+        HubNavItem(MiyoIcons.Workshop, "Explore", HubTab.Explore, selectedTab, onTabSelected, Modifier.weight(1f))
+        HubNavItem(MiyoIcons.Settings, "Settings", HubTab.Settings, selectedTab, onTabSelected, Modifier.weight(1f))
     }
 }
 
 @Composable
-private fun HubNavItem(icon: ImageVector, label: String, selected: Boolean, modifier: Modifier) {
+private fun HubNavItem(
+    icon: ImageVector,
+    label: String,
+    tab: HubTab,
+    selectedTab: HubTab,
+    onTabSelected: (HubTab) -> Unit,
+    modifier: Modifier
+) {
+    val selected = tab == selectedTab
     val color = if (selected) MiyoColors.Petal else MiyoColors.TextMuted
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(MiyoRadius.md))
             .background(if (selected) MiyoColors.Petal.copy(alpha = 0.14f) else Color.Transparent)
-            .padding(horizontal = MiyoSpacing.sm, vertical = MiyoSpacing.sm),
+            .clickable { onTabSelected(tab) }
+            .padding(horizontal = MiyoSpacing.xs, vertical = MiyoSpacing.xs),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(MiyoSpacing.xs)
+        verticalArrangement = Arrangement.spacedBy(MiyoSpacing.xxs)
     ) {
         Icon(icon, contentDescription = label, tint = color, modifier = Modifier.size(18.dp))
-        Text(label, color = color, style = MaterialTheme.typography.labelMedium)
+        Text(label, color = color, style = MaterialTheme.typography.labelMedium, maxLines = 1)
     }
 }

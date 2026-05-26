@@ -82,8 +82,6 @@ fun ModeTabs(
 
 private val EditorMode.icon: ImageVector
     get() = when (this) {
-        EditorMode.Simple -> MiyoIcons.SimpleMode
+        EditorMode.Edit -> MiyoIcons.SimpleMode
         EditorMode.Preview -> MiyoIcons.Preview
-        EditorMode.NodeConnect -> MiyoIcons.NodeMode
-        EditorMode.Code -> MiyoIcons.CodeMode
     }

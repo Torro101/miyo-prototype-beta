@@ -19,19 +19,26 @@ enum class MiyoRoute {
     Editor
 }
 
+enum class HubTab(val label: String) {
+    Home("Home"),
+    Library("Library"),
+    Explore("Explore"),
+    Settings("Settings")
+}
+
 enum class EditorMode(val label: String) {
-    Simple("Simple"),
-    Preview("Preview"),
-    NodeConnect("Nodes"),
-    Code("Code")
+    Edit("Edit"),
+    Preview("Preview")
 }
 
 enum class SimpleEditorTab(val label: String, val assetKind: AssetKind? = null) {
-    Timeline("Timeline"),
+    Timeline("Scenes"),
+    Files("Files"),
     Characters("Characters", AssetKind.Character),
     Scenery("Scenery", AssetKind.Scenery),
     Bgm("BGM", AssetKind.Bgm),
     Variables("Variables"),
+    Conditions("Conditions"),
     Sfx("SFX", AssetKind.Sfx),
     Cutscenes("Cutscenes", AssetKind.Cutscene),
     Gui("GUI", AssetKind.Gui);
@@ -44,7 +51,8 @@ enum class SimpleEditorTab(val label: String, val assetKind: AssetKind? = null) 
 
 class MiyoAppState(
     initialRoute: MiyoRoute = MiyoRoute.Hub,
-    initialEditorMode: EditorMode = EditorMode.Simple,
+    initialHubTab: HubTab = HubTab.Home,
+    initialEditorMode: EditorMode = EditorMode.Edit,
     initialProjects: List<MiyoProject> = MiyoSampleProjects.initialProjects()
 ) {
     private val projectState = mutableStateListOf<MiyoProject>().apply {
@@ -52,6 +60,9 @@ class MiyoAppState(
     }
 
     var route by mutableStateOf(initialRoute)
+        private set
+
+    var hubTab by mutableStateOf(initialHubTab)
         private set
 
     var editorMode by mutableStateOf(initialEditorMode)
@@ -97,7 +108,7 @@ class MiyoAppState(
         selectedBlockId = project.editor.selectedBlockId ?: project.selectedBlock()?.id
         selectedSceneId = project.editor.selectedSceneId ?: project.selectedScene(selectedBlockId)?.id
         selectedActionId = project.editor.selectedActionId ?: project.selectedScene(selectedBlockId, selectedSceneId)?.actions?.firstOrNull()?.id
-        editorMode = EditorMode.Simple
+        editorMode = EditorMode.Edit
         simpleTab = SimpleEditorTab.Timeline
         route = MiyoRoute.Editor
     }
@@ -107,6 +118,10 @@ class MiyoAppState(
         val project = MiyoSampleProjects.blankProject(nextIndex)
         projectState.add(0, project)
         openProject(project.projectId)
+    }
+
+    fun selectHubTab(tab: HubTab) {
+        hubTab = tab
     }
 
     fun selectEditorMode(mode: EditorMode) {

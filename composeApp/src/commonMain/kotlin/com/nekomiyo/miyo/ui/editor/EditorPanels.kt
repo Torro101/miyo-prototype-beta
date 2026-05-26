@@ -35,12 +35,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.nekomiyo.miyo.core.exporting.MiyoExportPlan
-import com.nekomiyo.miyo.core.exporting.MiyoExportPlanner
 import com.nekomiyo.miyo.core.model.AssetKind
 import com.nekomiyo.miyo.core.model.AudioChannel
 import com.nekomiyo.miyo.core.model.MiyoAsset
@@ -49,17 +46,13 @@ import com.nekomiyo.miyo.core.model.SceneAction
 import com.nekomiyo.miyo.core.model.StoryScene
 import com.nekomiyo.miyo.core.model.emptyPrompt
 import com.nekomiyo.miyo.core.model.findAsset
+import com.nekomiyo.miyo.core.model.label
 import com.nekomiyo.miyo.core.model.primaryText
+import com.nekomiyo.miyo.core.model.selectedBlock
 import com.nekomiyo.miyo.core.model.selectedScene
 import com.nekomiyo.miyo.core.runtime.MiyoRuntimeEvent
 import com.nekomiyo.miyo.core.runtime.MiyoRuntimePreviewState
 import com.nekomiyo.miyo.core.runtime.toRuntimePreviewState
-import com.nekomiyo.miyo.core.script.MiyoScriptCompiler
-import com.nekomiyo.miyo.core.script.MiyoScriptDiagnostic
-import com.nekomiyo.miyo.core.script.MiyoScriptFormatter
-import com.nekomiyo.miyo.nodeconnect.MiyoNodeBridgeHost
-import com.nekomiyo.miyo.nodeconnect.MiyoNodeConnectView
-import com.nekomiyo.miyo.nodeconnect.toGraphSnapshot
 import com.nekomiyo.miyo.ui.design.MiyoIconLabel
 import com.nekomiyo.miyo.ui.design.MiyoIcons
 import com.nekomiyo.miyo.ui.design.MiyoPanel
@@ -83,7 +76,7 @@ fun SimpleModePanel(
     modifier: Modifier = Modifier
 ) {
     WorkspacePanel(
-        title = "Simple",
+        title = "Visual editor",
         subtitle = project.displayTitle(),
         icon = MiyoIcons.SimpleMode,
         tint = MiyoColors.Petal,
@@ -97,102 +90,14 @@ fun SimpleModePanel(
                 selectedActionId = selectedActionId,
                 onActionSelected = onActionSelected
             )
+            SimpleEditorTab.Files -> FileManagerEditor(project)
             SimpleEditorTab.Variables -> VariablesEditor(project)
+            SimpleEditorTab.Conditions -> ConditionsEditor(project, selectedSceneId)
             SimpleEditorTab.Gui -> GuiEditor(project)
             else -> AssetLibraryEditor(
                 project = project,
                 assetKind = selectedTab.assetKind ?: selectedAssetKind
             )
-        }
-    }
-}
-
-@Composable
-fun NodeConnectPanel(
-    project: MiyoProject,
-    diagnosticsCount: Int,
-    modifier: Modifier = Modifier
-) {
-    val graphSnapshot = project.toGraphSnapshot(diagnosticsCount = diagnosticsCount)
-    val hostSnapshotJson = graphSnapshot.toHostLoadGraphEnvelopeJson()
-
-    MiyoPanel(
-        modifier = modifier,
-        containerColor = MiyoColors.Surface,
-        contentPadding = PaddingValues(0.dp)
-    ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            MiyoNodeConnectView(
-                bridgeHost = object : MiyoNodeBridgeHost {
-                    override fun onNodeBridgeMessage(messageJson: String) {
-                        // Graph messages are routed to editor commands in the next pass.
-                    }
-                },
-                hostSnapshotJson = hostSnapshotJson
-            )
-            MiyoPill(
-                text = "${graphSnapshot.nodes.size} nodes / ${graphSnapshot.edges.size} edges",
-                icon = MiyoIcons.NodeMode,
-                contentColor = MiyoColors.Lagoon,
-                containerColor = MiyoColors.Ink.copy(alpha = 0.86f),
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(MiyoSpacing.md)
-            )
-        }
-    }
-}
-
-@Composable
-fun CodeModePanel(
-    project: MiyoProject,
-    modifier: Modifier = Modifier
-) {
-    val source = MiyoScriptFormatter.format(project)
-    val compileResult = MiyoScriptCompiler.compileActions(source)
-    val exportPlan = MiyoExportPlanner.plan(project)
-
-    WorkspacePanel(
-        title = "Code",
-        subtitle = "MiyoScript mirror",
-        icon = MiyoIcons.CodeMode,
-        tint = MiyoColors.Lagoon,
-        modifier = modifier
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .weight(1f),
-            horizontalArrangement = Arrangement.spacedBy(MiyoSpacing.md)
-        ) {
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .clip(RoundedCornerShape(MiyoRadius.lg))
-                    .background(MiyoColors.Ink)
-                    .border(MiyoStroke.hairline, MiyoColors.Outline, RoundedCornerShape(MiyoRadius.lg))
-                    .verticalScroll(rememberScrollState())
-                    .padding(MiyoSpacing.md),
-                verticalArrangement = Arrangement.spacedBy(MiyoSpacing.xs)
-            ) {
-                source.lines().forEach { line ->
-                    CodeLine(line, line.scriptLineColor())
-                }
-            }
-            Column(
-                modifier = Modifier
-                    .width(312.dp)
-                    .fillMaxHeight()
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(MiyoSpacing.sm)
-            ) {
-                ScriptDiagnosticsPanel(
-                    diagnostics = compileResult.diagnostics,
-                    actionCount = compileResult.actions.size
-                )
-                ExportPlanPanel(exportPlan)
-            }
         }
     }
 }
@@ -364,68 +269,6 @@ private fun RuntimeEventRow(index: Int, event: MiyoRuntimeEvent) {
         Column(verticalArrangement = Arrangement.spacedBy(MiyoSpacing.xs)) {
             Text(event.label, color = MiyoColors.TextPrimary, style = MaterialTheme.typography.labelLarge)
             Text(event.detail, color = MiyoColors.TextMuted, style = MaterialTheme.typography.bodySmall)
-        }
-    }
-}
-
-@Composable
-private fun ScriptDiagnosticsPanel(
-    diagnostics: List<MiyoScriptDiagnostic>,
-    actionCount: Int
-) {
-    MiyoPanel(
-        modifier = Modifier.fillMaxWidth(),
-        containerColor = MiyoColors.InkSoft
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(MiyoSpacing.sm)) {
-            MiyoIconLabel(
-                icon = if (diagnostics.isEmpty()) MiyoIcons.Preview else MiyoIcons.Warning,
-                label = if (diagnostics.isEmpty()) "Script OK" else "Script Issues",
-                iconTint = if (diagnostics.isEmpty()) MiyoColors.Mint else MiyoColors.Honey,
-                textColor = MiyoColors.TextPrimary
-            )
-            if (diagnostics.isEmpty()) {
-                Text(
-                    text = "Generated script compiles back to $actionCount actions.",
-                    color = MiyoColors.TextMuted,
-                    style = MaterialTheme.typography.bodySmall
-                )
-            } else {
-                diagnostics.take(5).forEach { diagnostic ->
-                    Text(
-                        text = "Line ${diagnostic.line}: ${diagnostic.message}",
-                        color = MiyoColors.Honey,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ExportPlanPanel(plan: MiyoExportPlan) {
-    MiyoPanel(
-        modifier = Modifier.fillMaxWidth(),
-        containerColor = MiyoColors.InkSoft
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(MiyoSpacing.sm)) {
-            MiyoIconLabel(
-                icon = MiyoIcons.Export,
-                label = "Package",
-                iconTint = if (plan.ready) MiyoColors.Mint else MiyoColors.Honey,
-                textColor = MiyoColors.TextPrimary
-            )
-            SettingRow("Name", plan.packageName)
-            SettingRow("Schema", plan.manifest.schemaVersion.toString())
-            SettingRow("Locales", plan.manifest.locales.joinToString())
-            SettingRow("Assets", plan.manifest.assetCount.toString())
-            SettingRow("Files", "${plan.files.count { it.required }} required / ${plan.files.count { !it.required }} optional")
-            Text(
-                text = plan.diagnostics.firstOrNull()?.message ?: "Ready for package assembly.",
-                color = if (plan.ready) MiyoColors.TextMuted else MiyoColors.Honey,
-                style = MaterialTheme.typography.bodySmall
-            )
         }
     }
 }
@@ -717,6 +560,112 @@ private fun AssetRow(asset: MiyoAsset) {
 }
 
 @Composable
+private fun FileManagerEditor(project: MiyoProject) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(MiyoSpacing.sm)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            MiyoIconLabel(MiyoIcons.Assets, "File manager", iconTint = MiyoColors.Lagoon, textColor = MiyoColors.TextPrimary)
+            Button(
+                onClick = {},
+                colors = ButtonDefaults.buttonColors(containerColor = MiyoColors.Lagoon, contentColor = MiyoColors.Ink)
+            ) {
+                Icon(MiyoIcons.Import, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(MiyoSpacing.xs))
+                Text("Import")
+            }
+        }
+        FileSystemGroup(
+            title = "Project package",
+            icon = MiyoIcons.Library,
+            tint = MiyoColors.Petal,
+            rows = listOf(
+                "project.miyo" to "Manifest, settings, locales",
+                "story.json" to "${project.story.blocks.size} chapters / ${project.summary().sceneCount} scenes",
+                "gui-theme.json" to project.guiTheme.fontFamily
+            )
+        )
+        FileFolder("Characters", AssetKind.Character, project)
+        FileFolder("Scenery", AssetKind.Scenery, project)
+        FileFolder("Audio", AssetKind.Bgm, project)
+        FileFolder("SFX", AssetKind.Sfx, project)
+        FileFolder("Cutscenes", AssetKind.Cutscene, project)
+        FileFolder("GUI", AssetKind.Gui, project)
+        val queued = project.assets.assets.filter { it.status.name != "Ready" }
+        FileSystemGroup(
+            title = "Import queue",
+            icon = MiyoIcons.Import,
+            tint = MiyoColors.Honey,
+            rows = if (queued.isEmpty()) {
+                listOf("No pending files" to "Everything registered")
+            } else {
+                queued.map { it.displayName to it.status.label }
+            }
+        )
+    }
+}
+
+@Composable
+private fun FileSystemGroup(
+    title: String,
+    icon: ImageVector,
+    tint: Color,
+    rows: List<Pair<String, String>>
+) {
+    MiyoPanel(modifier = Modifier.fillMaxWidth(), containerColor = MiyoColors.SurfaceRaised) {
+        Column(verticalArrangement = Arrangement.spacedBy(MiyoSpacing.xs)) {
+            MiyoIconLabel(icon, title, iconTint = tint, textColor = MiyoColors.TextPrimary)
+            rows.forEach { (name, detail) ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(MiyoRadius.md))
+                        .background(MiyoColors.InkSoft)
+                        .padding(horizontal = MiyoSpacing.sm, vertical = MiyoSpacing.xs),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(MiyoSpacing.xxs)) {
+                        Text(name, color = MiyoColors.TextPrimary, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                        Text(detail, color = MiyoColors.TextMuted, style = MaterialTheme.typography.labelMedium)
+                    }
+                    Text(">", color = MiyoColors.TextMuted, style = MaterialTheme.typography.titleMedium)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FileFolder(title: String, kind: AssetKind, project: MiyoProject) {
+    val assets = project.assets.byKind(kind)
+    MiyoPanel(modifier = Modifier.fillMaxWidth(), containerColor = MiyoColors.SurfaceRaised) {
+        Column(verticalArrangement = Arrangement.spacedBy(MiyoSpacing.xs)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                MiyoIconLabel(kind.icon, "$title (${assets.size})", iconTint = kind.tint, textColor = MiyoColors.TextPrimary)
+                Text(">", color = MiyoColors.TextMuted, style = MaterialTheme.typography.titleMedium)
+            }
+            if (assets.isEmpty()) {
+                Text(kind.emptyPrompt(), color = MiyoColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+            } else {
+                assets.take(3).forEach { asset ->
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Text(asset.displayName, color = MiyoColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
+                        MiyoPill(asset.status.label, contentColor = if (asset.status.name == "Ready") MiyoColors.Mint else MiyoColors.Honey)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun VariablesEditor(project: MiyoProject) {
     Column(
         modifier = Modifier
@@ -746,6 +695,87 @@ private fun VariablesEditor(project: MiyoProject) {
                     MiyoPill(variable.defaultValue.ifEmpty { "empty" }, contentColor = MiyoColors.TextSecondary)
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ConditionsEditor(project: MiyoProject, selectedSceneId: String?) {
+    val block = project.selectedBlock()
+    val scene = block?.scenes?.firstOrNull { it.id == selectedSceneId } ?: project.selectedScene()
+    val choices = scene?.actions.orEmpty().filterIsInstance<SceneAction.Choice>()
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(MiyoSpacing.sm)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            MiyoIconLabel(MiyoIcons.Back, "Conditions", iconTint = MiyoColors.Honey, textColor = MiyoColors.TextPrimary)
+            Button(onClick = {}, colors = ButtonDefaults.buttonColors(containerColor = MiyoColors.Honey, contentColor = MiyoColors.Ink)) {
+                Icon(MiyoIcons.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(MiyoSpacing.xs))
+                Text("Rule")
+            }
+        }
+        ConditionCard(
+            title = "Chapter activation",
+            detail = "${block?.label ?: "Current chapter"} opens when its start condition passes.",
+            icon = MiyoIcons.Timeline,
+            tint = MiyoColors.Petal
+        )
+        ConditionCard(
+            title = "Scene activation",
+            detail = "${scene?.title ?: "Current scene"} starts on ${scene?.defaultTransition?.label(project) ?: "manual selection"}.",
+            icon = MiyoIcons.BackgroundAction,
+            tint = MiyoColors.Lagoon
+        )
+        if (choices.isEmpty()) {
+            ConditionCard("Choice routing", "No choices in this scene. Add a choice action to configure branches.", MiyoIcons.ChoiceAction, MiyoColors.TextMuted)
+        } else {
+            choices.forEach { choice ->
+                ConditionCard(
+                    title = choice.prompt.resolve(project.defaultLocale),
+                    detail = choice.options.joinToString(" / ") { option ->
+                        "${option.label.resolve(project.defaultLocale)} -> ${option.transition.label(project)}"
+                    },
+                    icon = MiyoIcons.ChoiceAction,
+                    tint = MiyoColors.Honey
+                )
+            }
+        }
+        project.variables.forEach { variable ->
+            MiyoPanel(modifier = Modifier.fillMaxWidth(), containerColor = MiyoColors.SurfaceRaised) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Column(verticalArrangement = Arrangement.spacedBy(MiyoSpacing.xs)) {
+                        Text("When ${variable.name}", color = MiyoColors.TextPrimary, style = MaterialTheme.typography.bodyMedium)
+                        Text("${variable.type.label} defaults to ${variable.defaultValue.ifEmpty { "empty" }}", color = MiyoColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(MiyoSpacing.xs)) {
+                        MiyoPill("Configure")
+                        Text(">", color = MiyoColors.TextMuted, style = MaterialTheme.typography.titleMedium)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ConditionCard(title: String, detail: String, icon: ImageVector, tint: Color) {
+    MiyoPanel(modifier = Modifier.fillMaxWidth(), containerColor = MiyoColors.SurfaceRaised) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(22.dp))
+            Spacer(Modifier.width(MiyoSpacing.sm))
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(MiyoSpacing.xs)) {
+                Text(title, color = MiyoColors.TextPrimary, style = MaterialTheme.typography.titleMedium)
+                Text(detail, color = MiyoColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+            }
+            Text(">", color = MiyoColors.TextMuted, style = MaterialTheme.typography.titleMedium)
         }
     }
 }
@@ -856,16 +886,6 @@ private fun WorkspacePanel(
     }
 }
 
-@Composable
-private fun CodeLine(text: String, color: Color = MiyoColors.TextSecondary) {
-    Text(
-        text = text,
-        color = color,
-        fontFamily = FontFamily.Monospace,
-        style = MaterialTheme.typography.bodyMedium
-    )
-}
-
 private fun SceneAction.icon(): ImageVector = when (this) {
     is SceneAction.Dialogue -> MiyoIcons.TextAction
     is SceneAction.Choice -> MiyoIcons.ChoiceAction
@@ -915,13 +935,3 @@ private val AssetKind.tint: Color
         AssetKind.Font -> MiyoColors.TextSecondary
         AssetKind.Other -> MiyoColors.TextMuted
     }
-
-private fun String.scriptLineColor(): Color = when {
-    startsWith("#") -> MiyoColors.TextMuted
-    trimStart().startsWith("block ") -> MiyoColors.Petal
-    trimStart().startsWith("scene ") -> MiyoColors.Lagoon
-    trimStart().startsWith("choice ") -> MiyoColors.Honey
-    trimStart().startsWith("bgm ") || trimStart().startsWith("sfx ") -> MiyoColors.Coral
-    trimStart().startsWith("var ") || trimStart().startsWith("input ") -> MiyoColors.Mint
-    else -> MiyoColors.TextSecondary
-}
