@@ -91,6 +91,7 @@ fun SimpleModePanel(
     onActionSelected: (String) -> Unit,
     onAreaSelected: (String) -> Unit,
     onAddInteractiveArea: (String, InteractiveAreaShape) -> Unit,
+    onResizeInteractiveArea: (String, Float, Float) -> Unit,
     modifier: Modifier = Modifier
 ) {
     WorkspacePanel(
@@ -118,7 +119,8 @@ fun SimpleModePanel(
                 selectedSceneId = selectedSceneId,
                 selectedAreaId = selectedAreaId,
                 onAreaSelected = onAreaSelected,
-                onAddInteractiveArea = onAddInteractiveArea
+                onAddInteractiveArea = onAddInteractiveArea,
+                onResizeInteractiveArea = onResizeInteractiveArea
             )
             SimpleEditorTab.Gui -> GuiEditor(project)
             else -> AssetLibraryEditor(
@@ -850,7 +852,8 @@ private fun InteractiveAreasEditor(
     selectedSceneId: String?,
     selectedAreaId: String?,
     onAreaSelected: (String) -> Unit,
-    onAddInteractiveArea: (String, InteractiveAreaShape) -> Unit
+    onAddInteractiveArea: (String, InteractiveAreaShape) -> Unit,
+    onResizeInteractiveArea: (String, Float, Float) -> Unit
 ) {
     var showAddDialog by remember { mutableStateOf(false) }
     var areaName by remember { mutableStateOf("") }
@@ -899,7 +902,8 @@ private fun InteractiveAreasEditor(
                     project = project,
                     area = area,
                     selected = area.id == selectedAreaId,
-                    onClick = { onAreaSelected(area.id) }
+                    onClick = { onAreaSelected(area.id) },
+                    onResize = { widthDelta, heightDelta -> onResizeInteractiveArea(area.id, widthDelta, heightDelta) }
                 )
             }
         }
@@ -980,7 +984,8 @@ private fun CollisionAreaRow(
     project: MiyoProject,
     area: InteractiveArea,
     selected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onResize: (Float, Float) -> Unit
 ) {
     val tint = when (area.shape) {
         InteractiveAreaShape.Box -> MiyoColors.Petal
@@ -1016,9 +1021,28 @@ private fun CollisionAreaRow(
                     color = MiyoColors.TextMuted,
                     style = MaterialTheme.typography.labelMedium
                 )
+                if (selected) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(MiyoSpacing.xs), verticalAlignment = Alignment.CenterVertically) {
+                        ResizeButton("W-", onClick = { onResize(-24f, 0f) })
+                        ResizeButton("W+", onClick = { onResize(24f, 0f) })
+                        ResizeButton("H-", onClick = { onResize(0f, -24f) })
+                        ResizeButton("H+", onClick = { onResize(0f, 24f) })
+                    }
+                }
             }
             Text(">", color = MiyoColors.TextMuted, style = MaterialTheme.typography.titleMedium)
         }
+    }
+}
+
+@Composable
+private fun ResizeButton(label: String, onClick: () -> Unit) {
+    TextButton(
+        onClick = onClick,
+        modifier = Modifier.height(28.dp),
+        contentPadding = PaddingValues(horizontal = MiyoSpacing.xs, vertical = MiyoSpacing.xxs)
+    ) {
+        Text(label, color = MiyoColors.Lagoon, style = MaterialTheme.typography.labelMedium)
     }
 }
 

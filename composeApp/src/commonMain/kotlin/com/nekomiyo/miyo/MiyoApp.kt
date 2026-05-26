@@ -42,6 +42,7 @@ fun MiyoApp() {
                         onActionSelected = appState::selectAction,
                         onAreaSelected = appState::selectInteractiveArea,
                         onAddInteractiveArea = appState::addInteractiveArea,
+                        onResizeInteractiveArea = appState::resizeInteractiveArea,
                         onBackToHub = appState::openHub
                     )
                 }

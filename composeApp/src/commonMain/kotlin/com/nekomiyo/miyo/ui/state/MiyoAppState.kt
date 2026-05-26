@@ -209,6 +209,49 @@ class MiyoAppState(
         simpleTab = SimpleEditorTab.Areas
     }
 
+    fun resizeInteractiveArea(areaId: String, widthDelta: Float, heightDelta: Float) {
+        val project = currentProject ?: return
+        val blockId = selectedBlockId ?: project.selectedBlock()?.id ?: return
+        val sceneId = selectedSceneId ?: project.selectedScene(blockId)?.id ?: return
+        replaceProject(
+            project.copy(
+                story = project.story.copy(
+                    blocks = project.story.blocks.map { block ->
+                        if (block.id != blockId) {
+                            block
+                        } else {
+                            block.copy(
+                                scenes = block.scenes.map { scene ->
+                                    if (scene.id != sceneId) {
+                                        scene
+                                    } else {
+                                        scene.copy(
+                                            interactiveAreas = scene.interactiveAreas.map { area ->
+                                                if (area.id != areaId) {
+                                                    area
+                                                } else {
+                                                    val maxWidth = (project.settings.canvasWidth - area.frame.x).coerceAtLeast(32f)
+                                                    val maxHeight = (project.settings.canvasHeight - area.frame.y).coerceAtLeast(32f)
+                                                    area.copy(
+                                                        frame = area.frame.copy(
+                                                            width = (area.frame.width + widthDelta).coerceIn(32f, maxWidth),
+                                                            height = (area.frame.height + heightDelta).coerceIn(32f, maxHeight)
+                                                        )
+                                                    )
+                                                }
+                                            }
+                                        )
+                                    }
+                                }
+                            )
+                        }
+                    }
+                )
+            )
+        )
+        selectedAreaId = areaId
+    }
+
     private fun MiyoProject.findSceneActionCandidate(blockId: String, sceneId: String): String? =
         selectedScene(blockId = blockId, sceneId = sceneId)?.actions?.firstOrNull()?.id
 

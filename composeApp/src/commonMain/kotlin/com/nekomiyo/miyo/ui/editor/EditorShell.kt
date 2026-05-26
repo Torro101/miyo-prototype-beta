@@ -77,6 +77,7 @@ fun EditorShell(
     onActionSelected: (String) -> Unit,
     onAreaSelected: (String) -> Unit,
     onAddInteractiveArea: (String, InteractiveAreaShape) -> Unit,
+    onResizeInteractiveArea: (String, Float, Float) -> Unit,
     onBackToHub: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -134,6 +135,7 @@ fun EditorShell(
                     onActionSelected = onActionSelected,
                     onAreaSelected = onAreaSelected,
                     onAddInteractiveArea = onAddInteractiveArea,
+                    onResizeInteractiveArea = onResizeInteractiveArea,
                     modifier = Modifier.weight(1f)
                 )
                 EditorContextBar(
@@ -163,6 +165,7 @@ private fun EditorWorkspace(
     onActionSelected: (String) -> Unit,
     onAreaSelected: (String) -> Unit,
     onAddInteractiveArea: (String, InteractiveAreaShape) -> Unit,
+    onResizeInteractiveArea: (String, Float, Float) -> Unit,
     modifier: Modifier = Modifier
 ) {
     when (selectedMode) {
@@ -177,6 +180,7 @@ private fun EditorWorkspace(
             onActionSelected = onActionSelected,
             onAreaSelected = onAreaSelected,
             onAddInteractiveArea = onAddInteractiveArea,
+            onResizeInteractiveArea = onResizeInteractiveArea,
             modifier = modifier
         )
         EditorMode.Preview -> RuntimePreviewPanel(
