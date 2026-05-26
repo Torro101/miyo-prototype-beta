@@ -33,12 +33,15 @@ fun MiyoApp() {
                         selectedBlockId = appState.selectedBlockId,
                         selectedSceneId = appState.selectedSceneId,
                         selectedActionId = appState.selectedActionId,
+                        selectedAreaId = appState.selectedAreaId,
                         selectedAssetKind = appState.selectedAssetKind,
                         onModeSelected = appState::selectEditorMode,
                         onSimpleTabSelected = appState::selectSimpleTab,
                         onAssetKindSelected = appState::selectAssetKind,
                         onSceneSelected = appState::selectScene,
                         onActionSelected = appState::selectAction,
+                        onAreaSelected = appState::selectInteractiveArea,
+                        onAddInteractiveArea = appState::addInteractiveArea,
                         onBackToHub = appState::openHub
                     )
                 }

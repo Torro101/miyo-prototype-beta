@@ -4,9 +4,11 @@ import com.nekomiyo.miyo.core.model.MiyoProject
 import com.nekomiyo.miyo.core.model.SceneAction
 import com.nekomiyo.miyo.core.model.StoryBlock
 import com.nekomiyo.miyo.core.model.StoryScene
+import com.nekomiyo.miyo.core.model.conditionLabel
 import com.nekomiyo.miyo.core.model.findAsset
 import com.nekomiyo.miyo.core.model.selectedBlock
 import com.nekomiyo.miyo.core.model.selectedScene
+import com.nekomiyo.miyo.core.model.targetLabel
 
 data class MiyoRuntimePreviewState(
     val projectTitle: String,
@@ -16,6 +18,7 @@ data class MiyoRuntimePreviewState(
     val speaker: String?,
     val dialogue: String,
     val choices: List<String>,
+    val interactiveAreas: List<MiyoRuntimeInteractiveArea>,
     val timeline: List<MiyoRuntimeEvent>,
     val variables: List<MiyoRuntimeVariable>
 )
@@ -28,6 +31,14 @@ data class MiyoRuntimeEvent(
 data class MiyoRuntimeVariable(
     val name: String,
     val value: String
+)
+
+data class MiyoRuntimeInteractiveArea(
+    val name: String,
+    val shape: String,
+    val trigger: String,
+    val target: String,
+    val condition: String
 )
 
 fun MiyoProject.toRuntimePreviewState(
@@ -47,6 +58,15 @@ fun MiyoProject.toRuntimePreviewState(
         speaker = dialogueAction?.speaker,
         dialogue = dialogueAction?.text?.resolve(defaultLocale) ?: "No dialogue in this scene.",
         choices = choiceAction?.options?.map { it.label.resolve(defaultLocale) }.orEmpty(),
+        interactiveAreas = scene.interactiveAreas.map { area ->
+            MiyoRuntimeInteractiveArea(
+                name = area.name,
+                shape = area.shape.label,
+                trigger = area.trigger.label,
+                target = area.targetLabel(this),
+                condition = area.conditionLabel()
+            )
+        },
         timeline = scene.actions.map { action ->
             MiyoRuntimeEvent(label = action.label, detail = action.runtimeDetail(this))
         },

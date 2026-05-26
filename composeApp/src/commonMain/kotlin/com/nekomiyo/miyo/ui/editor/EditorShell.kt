@@ -36,6 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.nekomiyo.miyo.core.model.AssetKind
+import com.nekomiyo.miyo.core.model.InteractiveAreaShape
 import com.nekomiyo.miyo.core.model.MiyoProject
 import com.nekomiyo.miyo.core.model.SceneAction
 import com.nekomiyo.miyo.core.model.findAction
@@ -67,12 +68,15 @@ fun EditorShell(
     selectedBlockId: String?,
     selectedSceneId: String?,
     selectedActionId: String?,
+    selectedAreaId: String?,
     selectedAssetKind: AssetKind,
     onModeSelected: (EditorMode) -> Unit,
     onSimpleTabSelected: (SimpleEditorTab) -> Unit,
     onAssetKindSelected: (AssetKind) -> Unit,
     onSceneSelected: (String, String) -> Unit,
     onActionSelected: (String) -> Unit,
+    onAreaSelected: (String) -> Unit,
+    onAddInteractiveArea: (String, InteractiveAreaShape) -> Unit,
     onBackToHub: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -123,9 +127,12 @@ fun EditorShell(
                     selectedBlockId = selectedBlockId,
                     selectedSceneId = selectedSceneId,
                     selectedActionId = selectedActionId,
+                    selectedAreaId = selectedAreaId,
                     selectedAssetKind = selectedAssetKind,
                     onSimpleTabSelected = onSimpleTabSelected,
                     onActionSelected = onActionSelected,
+                    onAreaSelected = onAreaSelected,
+                    onAddInteractiveArea = onAddInteractiveArea,
                     modifier = Modifier.weight(1f)
                 )
                 EditorContextBar(
@@ -149,9 +156,12 @@ private fun EditorWorkspace(
     selectedBlockId: String?,
     selectedSceneId: String?,
     selectedActionId: String?,
+    selectedAreaId: String?,
     selectedAssetKind: AssetKind,
     onSimpleTabSelected: (SimpleEditorTab) -> Unit,
     onActionSelected: (String) -> Unit,
+    onAreaSelected: (String) -> Unit,
+    onAddInteractiveArea: (String, InteractiveAreaShape) -> Unit,
     modifier: Modifier = Modifier
 ) {
     when (selectedMode) {
@@ -160,9 +170,12 @@ private fun EditorWorkspace(
             selectedTab = simpleTab,
             selectedSceneId = selectedSceneId,
             selectedActionId = selectedActionId,
+            selectedAreaId = selectedAreaId,
             selectedAssetKind = selectedAssetKind,
             onTabSelected = onSimpleTabSelected,
             onActionSelected = onActionSelected,
+            onAreaSelected = onAreaSelected,
+            onAddInteractiveArea = onAddInteractiveArea,
             modifier = modifier
         )
         EditorMode.Preview -> RuntimePreviewPanel(
@@ -237,6 +250,10 @@ private fun EditorSidebar(
             SidebarItem(MiyoIcons.Back, "Conditions", simpleTab == SimpleEditorTab.Conditions) {
                 onModeSelected(EditorMode.Edit)
                 onSimpleTabSelected(SimpleEditorTab.Conditions)
+            }
+            SidebarItem(MiyoIcons.Inspector, "2D collision", simpleTab == SimpleEditorTab.Areas) {
+                onModeSelected(EditorMode.Edit)
+                onSimpleTabSelected(SimpleEditorTab.Areas)
             }
 
             SidebarSection("Assets")

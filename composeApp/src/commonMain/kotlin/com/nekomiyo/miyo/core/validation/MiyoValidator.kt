@@ -23,6 +23,7 @@ fun validateProject(project: MiyoProject): List<MiyoDiagnostic> {
     val blockIds = project.story.blocks.map { it.id }.toSet()
     val sceneIdsByBlock = project.story.blocks.associate { it.id to it.scenes.map { scene -> scene.id }.toSet() }
     val assetIds = project.assets.assets.map { it.id }.toSet()
+    val variableNames = project.variables.map { it.name }.toSet()
 
     if (project.schemaVersion != MiyoSchemaVersion) {
         diagnostics += MiyoDiagnostic(
@@ -108,6 +109,66 @@ fun validateProject(project: MiyoProject): List<MiyoDiagnostic> {
                         )
                     }
                     else -> Unit
+                }
+            }
+            if (scene.interactiveAreas.map { it.id }.toSet().size != scene.interactiveAreas.size) {
+                diagnostics += MiyoDiagnostic(
+                    severity = DiagnosticSeverity.Error,
+                    path = "story.${block.id}.${scene.id}.interactiveAreas",
+                    message = "Interactive area IDs must be unique inside a scene."
+                )
+            }
+            scene.interactiveAreas.forEach { area ->
+                if (area.name.isBlank()) {
+                    diagnostics += MiyoDiagnostic(
+                        severity = DiagnosticSeverity.Error,
+                        path = "interactiveArea.${area.id}.name",
+                        message = "Interactive areas must have a name."
+                    )
+                }
+                if (area.frame.width <= 0f || area.frame.height <= 0f) {
+                    diagnostics += MiyoDiagnostic(
+                        severity = DiagnosticSeverity.Error,
+                        path = "interactiveArea.${area.id}.frame",
+                        message = "Interactive area '${area.name}' must have positive width and height."
+                    )
+                }
+                if (
+                    area.frame.x < 0f ||
+                    area.frame.y < 0f ||
+                    area.frame.x + area.frame.width > project.settings.canvasWidth ||
+                    area.frame.y + area.frame.height > project.settings.canvasHeight
+                ) {
+                    diagnostics += MiyoDiagnostic(
+                        severity = DiagnosticSeverity.Warning,
+                        path = "interactiveArea.${area.id}.frame",
+                        message = "Interactive area '${area.name}' extends outside the ${project.settings.canvasWidth} x ${project.settings.canvasHeight} canvas."
+                    )
+                }
+                validateTransition(
+                    transition = area.transition,
+                    path = "interactiveArea.${area.id}.transition",
+                    blockIds = blockIds,
+                    sceneIdsByBlock = sceneIdsByBlock,
+                    diagnostics = diagnostics
+                )
+                area.variableName?.let { variableName ->
+                    if (variableName !in variableNames) {
+                        diagnostics += MiyoDiagnostic(
+                            severity = DiagnosticSeverity.Warning,
+                            path = "interactiveArea.${area.id}.variableName",
+                            message = "Interactive area '${area.name}' references unknown variable '$variableName'."
+                        )
+                    }
+                }
+                area.condition?.let { condition ->
+                    if (condition.variableName !in variableNames) {
+                        diagnostics += MiyoDiagnostic(
+                            severity = DiagnosticSeverity.Warning,
+                            path = "interactiveArea.${area.id}.condition",
+                            message = "Interactive area '${area.name}' condition references unknown variable '${condition.variableName}'."
+                        )
+                    }
                 }
             }
         }

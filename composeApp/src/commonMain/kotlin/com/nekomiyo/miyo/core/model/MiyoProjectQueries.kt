@@ -46,6 +46,14 @@ fun Transition.label(project: MiyoProject): String = when (this) {
     is Transition.Scene -> project.findScene(blockId, sceneId)?.title ?: "$blockId / $sceneId"
 }
 
+fun InteractiveArea.targetLabel(project: MiyoProject): String = when (transition) {
+    Transition.None -> variableName?.let { "Set $it" } ?: "No action"
+    else -> transition.label(project)
+}
+
+fun InteractiveArea.conditionLabel(): String =
+    condition?.let { "${it.variableName} ${it.operator.label} ${it.value}" } ?: "Always active"
+
 fun AssetKind.emptyPrompt(): String = when (this) {
     AssetKind.Character -> "Add character art for dialogue sprites."
     AssetKind.Scenery -> "Add scenery backgrounds for scenes."

@@ -7,7 +7,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.nekomiyo.miyo.core.model.AssetKind
+import com.nekomiyo.miyo.core.model.InteractiveArea
+import com.nekomiyo.miyo.core.model.InteractiveAreaFrame
+import com.nekomiyo.miyo.core.model.InteractiveAreaShape
+import com.nekomiyo.miyo.core.model.InteractiveAreaTrigger
 import com.nekomiyo.miyo.core.model.MiyoProject
+import com.nekomiyo.miyo.core.model.Transition
 import com.nekomiyo.miyo.core.model.selectedBlock
 import com.nekomiyo.miyo.core.model.selectedScene
 import com.nekomiyo.miyo.core.storage.MiyoSampleProjects
@@ -39,6 +44,7 @@ enum class SimpleEditorTab(val label: String, val assetKind: AssetKind? = null) 
     Bgm("BGM", AssetKind.Bgm),
     Variables("Variables"),
     Conditions("Conditions"),
+    Areas("Interactive areas"),
     Sfx("SFX", AssetKind.Sfx),
     Cutscenes("Cutscenes", AssetKind.Cutscene),
     Gui("GUI", AssetKind.Gui);
@@ -83,6 +89,9 @@ class MiyoAppState(
     var selectedActionId by mutableStateOf(projectState.firstOrNull()?.editor?.selectedActionId)
         private set
 
+    var selectedAreaId by mutableStateOf(projectState.firstOrNull()?.selectedScene()?.interactiveAreas?.firstOrNull()?.id)
+        private set
+
     var selectedAssetKind by mutableStateOf(AssetKind.Character)
         private set
 
@@ -108,6 +117,7 @@ class MiyoAppState(
         selectedBlockId = project.editor.selectedBlockId ?: project.selectedBlock()?.id
         selectedSceneId = project.editor.selectedSceneId ?: project.selectedScene(selectedBlockId)?.id
         selectedActionId = project.editor.selectedActionId ?: project.selectedScene(selectedBlockId, selectedSceneId)?.actions?.firstOrNull()?.id
+        selectedAreaId = project.selectedScene(selectedBlockId, selectedSceneId)?.interactiveAreas?.firstOrNull()?.id
         editorMode = EditorMode.Edit
         simpleTab = SimpleEditorTab.Timeline
         route = MiyoRoute.Editor
@@ -143,14 +153,71 @@ class MiyoAppState(
         selectedSceneId = sceneId
         selectedActionId = currentProject
             ?.findSceneActionCandidate(blockId = blockId, sceneId = sceneId)
+        selectedAreaId = currentProject
+            ?.selectedScene(blockId = blockId, sceneId = sceneId)
+            ?.interactiveAreas
+            ?.firstOrNull()
+            ?.id
     }
 
     fun selectAction(actionId: String) {
         selectedActionId = actionId
     }
 
+    fun selectInteractiveArea(areaId: String) {
+        selectedAreaId = areaId
+    }
+
+    fun addInteractiveArea(name: String, shape: InteractiveAreaShape) {
+        val project = currentProject ?: return
+        val blockId = selectedBlockId ?: project.selectedBlock()?.id ?: return
+        val sceneId = selectedSceneId ?: project.selectedScene(blockId)?.id ?: return
+        val cleanName = name.trim().ifEmpty { "${shape.label} area" }
+        val existingCount = project.selectedScene(blockId, sceneId)?.interactiveAreas?.size ?: 0
+        val areaId = "area-${cleanName.lowercase().replace(Regex("[^a-z0-9]+"), "-").trim('-').ifEmpty { shape.name.lowercase() }}-${existingCount + 1}"
+        val area = InteractiveArea(
+            id = areaId,
+            name = cleanName,
+            shape = shape,
+            frame = InteractiveAreaFrame(
+                x = (220f + existingCount * 46f).coerceAtMost(880f),
+                y = (180f + existingCount * 28f).coerceAtMost(420f),
+                width = if (shape == InteractiveAreaShape.Circle) 170f else 240f,
+                height = if (shape == InteractiveAreaShape.Circle) 170f else 150f
+            ),
+            trigger = InteractiveAreaTrigger.OnTap,
+            transition = Transition.Next
+        )
+        replaceProject(
+            project.copy(
+                story = project.story.copy(
+                    blocks = project.story.blocks.map { block ->
+                        if (block.id != blockId) {
+                            block
+                        } else {
+                            block.copy(
+                                scenes = block.scenes.map { scene ->
+                                    if (scene.id == sceneId) scene.copy(interactiveAreas = scene.interactiveAreas + area) else scene
+                                }
+                            )
+                        }
+                    }
+                )
+            )
+        )
+        selectedAreaId = areaId
+        simpleTab = SimpleEditorTab.Areas
+    }
+
     private fun MiyoProject.findSceneActionCandidate(blockId: String, sceneId: String): String? =
         selectedScene(blockId = blockId, sceneId = sceneId)?.actions?.firstOrNull()?.id
+
+    private fun replaceProject(project: MiyoProject) {
+        val index = projectState.indexOfFirst { it.projectId == project.projectId }
+        if (index >= 0) {
+            projectState[index] = project
+        }
+    }
 }
 
 @Composable

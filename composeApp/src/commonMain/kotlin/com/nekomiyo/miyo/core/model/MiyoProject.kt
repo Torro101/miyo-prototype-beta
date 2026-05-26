@@ -91,6 +91,7 @@ data class StoryScene(
     val title: String,
     val backgroundAssetId: String? = null,
     val actions: List<SceneAction> = emptyList(),
+    val interactiveAreas: List<InteractiveArea> = emptyList(),
     val defaultTransition: Transition = Transition.Next
 )
 
@@ -201,6 +202,50 @@ sealed class Transition {
     data object Next : Transition()
     data class Block(val blockId: String) : Transition()
     data class Scene(val blockId: String, val sceneId: String) : Transition()
+}
+
+data class InteractiveArea(
+    val id: String,
+    val name: String,
+    val shape: InteractiveAreaShape,
+    val frame: InteractiveAreaFrame,
+    val trigger: InteractiveAreaTrigger = InteractiveAreaTrigger.OnTap,
+    val transition: Transition = Transition.None,
+    val condition: InteractiveAreaCondition? = null,
+    val variableName: String? = null
+)
+
+data class InteractiveAreaFrame(
+    val x: Float,
+    val y: Float,
+    val width: Float,
+    val height: Float
+)
+
+enum class InteractiveAreaShape(val label: String) {
+    Box("Box"),
+    Circle("Circle"),
+    Triangle("Triangle")
+}
+
+enum class InteractiveAreaTrigger(val label: String) {
+    OnTap("On tap"),
+    OnEnter("On enter"),
+    OnExit("On exit"),
+    OnHold("On hold")
+}
+
+data class InteractiveAreaCondition(
+    val variableName: String,
+    val operator: ConditionOperator = ConditionOperator.Equals,
+    val value: String
+)
+
+enum class ConditionOperator(val label: String) {
+    Equals("is"),
+    NotEquals("is not"),
+    GreaterThan(">"),
+    LessThan("<")
 }
 
 data class MiyoVariable(

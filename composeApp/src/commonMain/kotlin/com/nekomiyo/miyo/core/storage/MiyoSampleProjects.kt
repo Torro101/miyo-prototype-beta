@@ -8,6 +8,11 @@ import com.nekomiyo.miyo.core.model.AudioChannel
 import com.nekomiyo.miyo.core.model.ChoiceOption
 import com.nekomiyo.miyo.core.model.EditorMetadata
 import com.nekomiyo.miyo.core.model.GuiTheme
+import com.nekomiyo.miyo.core.model.InteractiveArea
+import com.nekomiyo.miyo.core.model.InteractiveAreaCondition
+import com.nekomiyo.miyo.core.model.InteractiveAreaFrame
+import com.nekomiyo.miyo.core.model.InteractiveAreaShape
+import com.nekomiyo.miyo.core.model.InteractiveAreaTrigger
 import com.nekomiyo.miyo.core.model.LocalizedText
 import com.nekomiyo.miyo.core.model.MiyoAsset
 import com.nekomiyo.miyo.core.model.MiyoColorToken
@@ -132,6 +137,17 @@ object MiyoSampleProjects {
                         ChoiceOption(LocalizedText.plain("Follow the voice"), Transition.Scene("block-opening", "scene-voice")),
                         ChoiceOption(LocalizedText.plain("Wait outside"), Transition.Scene("block-opening", "scene-wait"))
                     )
+                )
+            ),
+            interactiveAreas = listOf(
+                InteractiveArea(
+                    id = "area-ticket-gate",
+                    name = "Ticket gate tap",
+                    shape = InteractiveAreaShape.Box,
+                    frame = InteractiveAreaFrame(x = 760f, y = 238f, width = 260f, height = 210f),
+                    trigger = InteractiveAreaTrigger.OnTap,
+                    transition = Transition.Scene("block-opening", "scene-voice"),
+                    condition = InteractiveAreaCondition(variableName = "met_voice", value = "false")
                 )
             ),
             defaultTransition = Transition.Next

@@ -2,6 +2,7 @@ package com.nekomiyo.miyo.ui.editor
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -16,40 +17,54 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.nekomiyo.miyo.core.model.AssetKind
 import com.nekomiyo.miyo.core.model.AudioChannel
+import com.nekomiyo.miyo.core.model.InteractiveArea
+import com.nekomiyo.miyo.core.model.InteractiveAreaShape
 import com.nekomiyo.miyo.core.model.MiyoAsset
 import com.nekomiyo.miyo.core.model.MiyoProject
 import com.nekomiyo.miyo.core.model.SceneAction
 import com.nekomiyo.miyo.core.model.StoryScene
+import com.nekomiyo.miyo.core.model.conditionLabel
 import com.nekomiyo.miyo.core.model.emptyPrompt
 import com.nekomiyo.miyo.core.model.findAsset
 import com.nekomiyo.miyo.core.model.label
 import com.nekomiyo.miyo.core.model.primaryText
 import com.nekomiyo.miyo.core.model.selectedBlock
 import com.nekomiyo.miyo.core.model.selectedScene
+import com.nekomiyo.miyo.core.model.targetLabel
 import com.nekomiyo.miyo.core.runtime.MiyoRuntimeEvent
 import com.nekomiyo.miyo.core.runtime.MiyoRuntimePreviewState
 import com.nekomiyo.miyo.core.runtime.toRuntimePreviewState
@@ -70,9 +85,12 @@ fun SimpleModePanel(
     selectedTab: SimpleEditorTab,
     selectedSceneId: String?,
     selectedActionId: String?,
+    selectedAreaId: String?,
     selectedAssetKind: AssetKind,
     onTabSelected: (SimpleEditorTab) -> Unit,
     onActionSelected: (String) -> Unit,
+    onAreaSelected: (String) -> Unit,
+    onAddInteractiveArea: (String, InteractiveAreaShape) -> Unit,
     modifier: Modifier = Modifier
 ) {
     WorkspacePanel(
@@ -88,11 +106,20 @@ fun SimpleModePanel(
                 project = project,
                 selectedSceneId = selectedSceneId,
                 selectedActionId = selectedActionId,
-                onActionSelected = onActionSelected
+                selectedAreaId = selectedAreaId,
+                onActionSelected = onActionSelected,
+                onAreaSelected = onAreaSelected
             )
             SimpleEditorTab.Files -> FileManagerEditor(project)
             SimpleEditorTab.Variables -> VariablesEditor(project)
             SimpleEditorTab.Conditions -> ConditionsEditor(project, selectedSceneId)
+            SimpleEditorTab.Areas -> InteractiveAreasEditor(
+                project = project,
+                selectedSceneId = selectedSceneId,
+                selectedAreaId = selectedAreaId,
+                onAreaSelected = onAreaSelected,
+                onAddInteractiveArea = onAddInteractiveArea
+            )
             SimpleEditorTab.Gui -> GuiEditor(project)
             else -> AssetLibraryEditor(
                 project = project,
@@ -241,6 +268,14 @@ private fun RuntimeTimeline(
             preview.timeline.forEachIndexed { index, event ->
                 RuntimeEventRow(index = index, event = event)
             }
+            SectionHeader("2D collision")
+            if (preview.interactiveAreas.isEmpty()) {
+                Text("No collision areas", color = MiyoColors.TextMuted, style = MaterialTheme.typography.bodySmall)
+            } else {
+                preview.interactiveAreas.forEach { area ->
+                    SettingRow(area.name, "${area.trigger} / ${area.target}")
+                }
+            }
             SectionHeader("Variables")
             if (preview.variables.isEmpty()) {
                 Text("No project variables", color = MiyoColors.TextMuted, style = MaterialTheme.typography.bodySmall)
@@ -315,7 +350,9 @@ private fun TimelineEditor(
     project: MiyoProject,
     selectedSceneId: String?,
     selectedActionId: String?,
-    onActionSelected: (String) -> Unit
+    selectedAreaId: String?,
+    onActionSelected: (String) -> Unit,
+    onAreaSelected: (String) -> Unit
 ) {
     val scene = project.story.blocks
         .flatMap { it.scenes }
@@ -332,7 +369,13 @@ private fun TimelineEditor(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(if (compact) MiyoSpacing.sm else MiyoSpacing.md)
             ) {
-                ScenePreview(project = project, scene = scene, height = if (compact) 150.dp else 240.dp)
+                ScenePreview(
+                    project = project,
+                    scene = scene,
+                    height = if (compact) 150.dp else 240.dp,
+                    selectedAreaId = selectedAreaId,
+                    onAreaSelected = onAreaSelected
+                )
                 if (!compact) {
                     ActionPalette()
                 }
@@ -364,8 +407,14 @@ private fun TimelineEditor(
 }
 
 @Composable
-private fun ScenePreview(project: MiyoProject, scene: StoryScene?, height: Dp = 220.dp) {
-    Box(
+private fun ScenePreview(
+    project: MiyoProject,
+    scene: StoryScene?,
+    height: Dp = 220.dp,
+    selectedAreaId: String? = null,
+    onAreaSelected: (String) -> Unit = {}
+) {
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxWidth()
             .height(height)
@@ -375,6 +424,8 @@ private fun ScenePreview(project: MiyoProject, scene: StoryScene?, height: Dp = 
             .padding(MiyoSpacing.md)
     ) {
         val background = project.findAsset(scene?.backgroundAssetId)
+        val canvasWidth = project.settings.canvasWidth.toFloat().coerceAtLeast(1f)
+        val canvasHeight = project.settings.canvasHeight.toFloat().coerceAtLeast(1f)
         if (background != null) {
             MiyoPill(
                 text = background.displayName,
@@ -402,22 +453,116 @@ private fun ScenePreview(project: MiyoProject, scene: StoryScene?, height: Dp = 
                 style = MaterialTheme.typography.bodyMedium
             )
         }
+        scene?.interactiveAreas.orEmpty().forEach { area ->
+            val frame = area.frame
+            val areaWidth = ((frame.width / canvasWidth) * maxWidth.value).dp
+            val areaHeight = ((frame.height / canvasHeight) * height.value).dp
+            CollisionAreaOverlay(
+                area = area,
+                selected = area.id == selectedAreaId,
+                modifier = Modifier
+                    .offset(
+                        x = ((frame.x / canvasWidth) * maxWidth.value).dp,
+                        y = ((frame.y / canvasHeight) * height.value).dp
+                    )
+                    .size(areaWidth, areaHeight)
+                    .clickable { onAreaSelected(area.id) }
+            )
+        }
     }
+}
+
+@Composable
+private fun CollisionAreaOverlay(
+    area: InteractiveArea,
+    selected: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val tint = when (area.shape) {
+        InteractiveAreaShape.Box -> MiyoColors.Petal
+        InteractiveAreaShape.Circle -> MiyoColors.Lagoon
+        InteractiveAreaShape.Triangle -> MiyoColors.Honey
+    }
+    Box(modifier = modifier) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val strokeWidth = if (selected) 3.dp.toPx() else 2.dp.toPx()
+            when (area.shape) {
+                InteractiveAreaShape.Box -> {
+                    drawRect(color = tint.copy(alpha = 0.14f))
+                    drawRect(color = tint, style = Stroke(width = strokeWidth))
+                }
+                InteractiveAreaShape.Circle -> {
+                    drawOval(color = tint.copy(alpha = 0.14f))
+                    drawOval(color = tint, style = Stroke(width = strokeWidth))
+                }
+                InteractiveAreaShape.Triangle -> {
+                    val path = Path().apply {
+                        moveTo(size.width / 2f, 0f)
+                        lineTo(size.width, size.height)
+                        lineTo(0f, size.height)
+                        close()
+                    }
+                    drawPath(path = path, color = tint.copy(alpha = 0.14f))
+                    drawPath(path = path, color = tint, style = Stroke(width = strokeWidth))
+                }
+            }
+        }
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .border(MiyoStroke.hairline, tint.copy(alpha = 0.58f), RoundedCornerShape(MiyoRadius.xs))
+        )
+        AreaHandle(Modifier.align(Alignment.TopStart), tint)
+        AreaHandle(Modifier.align(Alignment.TopCenter), tint)
+        AreaHandle(Modifier.align(Alignment.TopEnd), tint)
+        AreaHandle(Modifier.align(Alignment.CenterStart), tint)
+        AreaHandle(Modifier.align(Alignment.CenterEnd), tint)
+        AreaHandle(Modifier.align(Alignment.BottomStart), tint)
+        AreaHandle(Modifier.align(Alignment.BottomCenter), tint)
+        AreaHandle(Modifier.align(Alignment.BottomEnd), tint)
+        MiyoPill(
+            text = area.name,
+            contentColor = tint,
+            containerColor = MiyoColors.Ink.copy(alpha = 0.82f),
+            modifier = Modifier.align(Alignment.TopStart).offset(y = (-28).dp)
+        )
+    }
+}
+
+@Composable
+private fun AreaHandle(modifier: Modifier, tint: Color) {
+    Box(
+        modifier = modifier
+            .size(10.dp)
+            .clip(RoundedCornerShape(MiyoRadius.xs))
+            .background(MiyoColors.Ink)
+            .border(MiyoStroke.hairline, tint, RoundedCornerShape(MiyoRadius.xs))
+    )
 }
 
 @Composable
 private fun ActionPalette() {
     MiyoPanel(containerColor = MiyoColors.InkSoft, contentPadding = PaddingValues(MiyoSpacing.sm)) {
-        Row(
+        Column(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(MiyoSpacing.sm),
-            verticalAlignment = Alignment.CenterVertically
+            verticalArrangement = Arrangement.spacedBy(MiyoSpacing.xs)
         ) {
-            PaletteButton(MiyoIcons.TextAction, "Text", MiyoColors.Petal)
-            PaletteButton(MiyoIcons.ChoiceAction, "Choice", MiyoColors.Honey)
-            PaletteButton(MiyoIcons.SoundAction, "Audio", MiyoColors.Coral)
-            PaletteButton(MiyoIcons.BackgroundAction, "Scene", MiyoColors.Lagoon)
-            PaletteButton(MiyoIcons.Add, "More", MiyoColors.Mint)
+            Row(horizontalArrangement = Arrangement.spacedBy(MiyoSpacing.xs)) {
+                PaletteButton(MiyoIcons.TextAction, "Add text", MiyoColors.Petal)
+                PaletteButton(MiyoIcons.ChoiceAction, "Add choices", MiyoColors.Honey)
+                PaletteButton(MiyoIcons.SoundAction, "Change BGM", MiyoColors.Coral)
+                PaletteButton(MiyoIcons.CharacterAction, "Characters", MiyoColors.Mint)
+                PaletteButton(MiyoIcons.BackgroundAction, "Scenery", MiyoColors.Lagoon)
+                PaletteButton(MiyoIcons.SoundAction, "Add SFX", MiyoColors.Wisteria)
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(MiyoSpacing.xs)) {
+                PaletteButton(MiyoIcons.Timeline, "Add wait", MiyoColors.Honey)
+                PaletteButton(MiyoIcons.Back, "Go to", MiyoColors.TextSecondary)
+                PaletteButton(MiyoIcons.Inspector, "2D collision", MiyoColors.Lagoon)
+                PaletteButton(MiyoIcons.Preview, "Cutscene", MiyoColors.Wisteria)
+                PaletteButton(MiyoIcons.Library, "Folder", MiyoColors.Mint)
+                PaletteButton(MiyoIcons.TextAction, "Input", MiyoColors.Petal)
+            }
         }
     }
 }
@@ -700,6 +845,184 @@ private fun VariablesEditor(project: MiyoProject) {
 }
 
 @Composable
+private fun InteractiveAreasEditor(
+    project: MiyoProject,
+    selectedSceneId: String?,
+    selectedAreaId: String?,
+    onAreaSelected: (String) -> Unit,
+    onAddInteractiveArea: (String, InteractiveAreaShape) -> Unit
+) {
+    var showAddDialog by remember { mutableStateOf(false) }
+    var areaName by remember { mutableStateOf("") }
+    var areaShape by remember { mutableStateOf(InteractiveAreaShape.Box) }
+    val scene = project.story.blocks
+        .flatMap { it.scenes }
+        .firstOrNull { it.id == selectedSceneId }
+        ?: project.selectedScene()
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(MiyoSpacing.sm)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            MiyoIconLabel(MiyoIcons.Inspector, "2D collision", iconTint = MiyoColors.Lagoon, textColor = MiyoColors.TextPrimary)
+            Button(
+                onClick = { showAddDialog = true },
+                colors = ButtonDefaults.buttonColors(containerColor = MiyoColors.Lagoon, contentColor = MiyoColors.Ink)
+            ) {
+                Icon(MiyoIcons.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(MiyoSpacing.xs))
+                Text("Add")
+            }
+        }
+        ScenePreview(
+            project = project,
+            scene = scene,
+            height = 280.dp,
+            selectedAreaId = selectedAreaId,
+            onAreaSelected = onAreaSelected
+        )
+        CollisionShapeTools(selectedShape = areaShape, onShapeSelected = { areaShape = it })
+        if (scene?.interactiveAreas.isNullOrEmpty()) {
+            MiyoPanel(modifier = Modifier.fillMaxWidth(), containerColor = MiyoColors.InkSoft) {
+                MiyoIconLabel(MiyoIcons.Inspector, "No 2D collision areas", iconTint = MiyoColors.TextMuted, textColor = MiyoColors.TextSecondary)
+            }
+        } else {
+            scene?.interactiveAreas.orEmpty().forEach { area ->
+                CollisionAreaRow(
+                    project = project,
+                    area = area,
+                    selected = area.id == selectedAreaId,
+                    onClick = { onAreaSelected(area.id) }
+                )
+            }
+        }
+    }
+
+    if (showAddDialog) {
+        AlertDialog(
+            onDismissRequest = { showAddDialog = false },
+            title = { Text("Name 2D collision", color = MiyoColors.TextPrimary) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(MiyoSpacing.sm)) {
+                    OutlinedTextField(
+                        value = areaName,
+                        onValueChange = { areaName = it },
+                        label = { Text("Area name") },
+                        singleLine = true
+                    )
+                    CollisionShapeTools(selectedShape = areaShape, onShapeSelected = { areaShape = it })
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onAddInteractiveArea(areaName, areaShape)
+                        areaName = ""
+                        showAddDialog = false
+                    }
+                ) {
+                    Text("Add")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAddDialog = false }) {
+                    Text("Cancel")
+                }
+            },
+            containerColor = MiyoColors.SurfaceRaised,
+            titleContentColor = MiyoColors.TextPrimary,
+            textContentColor = MiyoColors.TextSecondary
+        )
+    }
+}
+
+@Composable
+private fun CollisionShapeTools(
+    selectedShape: InteractiveAreaShape,
+    onShapeSelected: (InteractiveAreaShape) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(MiyoSpacing.xs)
+    ) {
+        InteractiveAreaShape.entries.forEach { shape ->
+            val selected = shape == selectedShape
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(38.dp)
+                    .clip(RoundedCornerShape(MiyoRadius.md))
+                    .background(if (selected) MiyoColors.Lagoon.copy(alpha = 0.18f) else MiyoColors.InkSoft)
+                    .border(
+                        MiyoStroke.hairline,
+                        if (selected) MiyoColors.Lagoon else MiyoColors.Outline,
+                        RoundedCornerShape(MiyoRadius.md)
+                    )
+                    .clickable { onShapeSelected(shape) }
+                    .padding(horizontal = MiyoSpacing.sm),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(shape.label, color = if (selected) MiyoColors.Lagoon else MiyoColors.TextSecondary, style = MaterialTheme.typography.labelLarge)
+            }
+        }
+    }
+}
+
+@Composable
+private fun CollisionAreaRow(
+    project: MiyoProject,
+    area: InteractiveArea,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val tint = when (area.shape) {
+        InteractiveAreaShape.Box -> MiyoColors.Petal
+        InteractiveAreaShape.Circle -> MiyoColors.Lagoon
+        InteractiveAreaShape.Triangle -> MiyoColors.Honey
+    }
+    MiyoPanel(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        containerColor = if (selected) tint.copy(alpha = 0.12f) else MiyoColors.SurfaceRaised
+    ) {
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(RoundedCornerShape(MiyoRadius.md))
+                    .background(tint.copy(alpha = 0.16f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(area.shape.label.first().toString(), color = tint, style = MaterialTheme.typography.titleMedium)
+            }
+            Spacer(Modifier.width(MiyoSpacing.sm))
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(MiyoSpacing.xs)) {
+                Text(area.name, color = MiyoColors.TextPrimary, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "${area.trigger.label} -> ${area.targetLabel(project)}",
+                    color = MiyoColors.TextSecondary,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Text(
+                    "${area.frame.width.toInt()} x ${area.frame.height.toInt()} / ${area.conditionLabel()}",
+                    color = MiyoColors.TextMuted,
+                    style = MaterialTheme.typography.labelMedium
+                )
+            }
+            Text(">", color = MiyoColors.TextMuted, style = MaterialTheme.typography.titleMedium)
+        }
+    }
+}
+
+@Composable
 private fun ConditionsEditor(project: MiyoProject, selectedSceneId: String?) {
     val block = project.selectedBlock()
     val scene = block?.scenes?.firstOrNull { it.id == selectedSceneId } ?: project.selectedScene()
@@ -747,6 +1070,14 @@ private fun ConditionsEditor(project: MiyoProject, selectedSceneId: String?) {
                     tint = MiyoColors.Honey
                 )
             }
+        }
+        scene?.interactiveAreas.orEmpty().forEach { area ->
+            ConditionCard(
+                title = area.name,
+                detail = "${area.trigger.label} -> ${area.targetLabel(project)} / ${area.conditionLabel()}",
+                icon = MiyoIcons.Inspector,
+                tint = MiyoColors.Lagoon
+            )
         }
         project.variables.forEach { variable ->
             MiyoPanel(modifier = Modifier.fillMaxWidth(), containerColor = MiyoColors.SurfaceRaised) {
