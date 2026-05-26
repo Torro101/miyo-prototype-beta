@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'" />
+    <title>Miyo Node Connect</title>
+    <link rel="stylesheet" href="./node-connect.css" />
+  </head>
+  <body>
+    <main class="shell" aria-label="Miyo Node Connect">
+      <header class="toolbar">
+        <div>
+          <p class="eyebrow">Nekomiyo / Miyo</p>
+          <h1 id="projectTitle">Node Connect</h1>
+        </div>
+        <div class="toolbar-actions" aria-label="Graph commands">
+          <button id="fitButton" type="button">Fit</button>
+          <button id="exportButton" type="button">Snapshot</button>
+        </div>
+      </header>
+
+      <section id="graph" class="graph" aria-label="Canonical project graph">
+        <div class="graph-meta">
+          <span id="nodeCount">0 nodes</span>
+          <span id="edgeCount">0 edges</span>
+        </div>
+        <svg id="edges" class="edges" viewBox="0 0 1600 900" role="img" aria-label="Graph edges"></svg>
+        <div id="nodeLayer" class="node-layer" aria-label="Graph nodes"></div>
+      </section>
+
+      <section class="status" aria-live="polite">
+        <h2>Bridge</h2>
+        <pre id="bridgeLog">Waiting for host graph...</pre>
+      </section>
+    </main>
+
+    <script src="./node-connect.js"></script>
+  </body>
+</html>

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 96" role="img" aria-labelledby="title">
+  <title id="title">Start node</title>
+  <rect x="1" y="1" width="158" height="94" rx="8" fill="#1b2029" stroke="#8fe3b0" stroke-width="2"/>
+  <circle cx="24" cy="28" r="10" fill="#8fe3b0"/>
+  <path fill="#0c0f13" d="m22 23 9 5-9 5v-10Z"/>
+  <rect x="44" y="22" width="74" height="8" rx="4" fill="#f5f1ea"/>
+  <rect x="24" y="54" width="108" height="6" rx="3" fill="#3b4350"/>
+  <rect x="24" y="68" width="82" height="6" rx="3" fill="#3b4350"/>
+</svg>

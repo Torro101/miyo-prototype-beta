@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220" role="img" aria-labelledby="title">
+  <title id="title">Miyo patterned backdrop</title>
+  <rect width="320" height="220" fill="#0c0f13"/>
+  <pattern id="dots" width="32" height="32" patternUnits="userSpaceOnUse">
+    <circle cx="16" cy="16" r="1.2" fill="#3b4350"/>
+  </pattern>
+  <rect width="320" height="220" fill="url(#dots)" opacity=".65"/>
+  <path fill="none" stroke="#242b35" d="M-80 0 140 220M16 0l220 220M112 0l220 220M208 0l220 220"/>
+  <g fill="none" stroke-width="1">
+    <ellipse cx="42" cy="50" rx="9" ry="14" stroke="#ff6f9d" opacity=".28"/>
+    <ellipse cx="54" cy="58" rx="9" ry="14" stroke="#4bc3c7" opacity=".22"/>
+    <ellipse cx="190" cy="92" rx="9" ry="14" stroke="#ff6f9d" opacity=".28"/>
+    <ellipse cx="202" cy="100" rx="9" ry="14" stroke="#4bc3c7" opacity=".22"/>
+    <ellipse cx="82" cy="166" rx="9" ry="14" stroke="#ff6f9d" opacity=".28"/>
+    <ellipse cx="94" cy="174" rx="9" ry="14" stroke="#4bc3c7" opacity=".22"/>
+  </g>
+</svg>

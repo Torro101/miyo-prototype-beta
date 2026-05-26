@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 160" role="img" aria-labelledby="title">
+  <title id="title">Empty project placeholder</title>
+  <rect width="240" height="160" rx="8" fill="#141922"/>
+  <path fill="none" stroke="#242b35" d="M0 32h240M0 64h240M0 96h240M0 128h240M32 0v160M64 0v160M96 0v160M128 0v160M160 0v160M192 0v160M224 0v160"/>
+  <path fill="none" stroke="#ff6f9d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M90 46h48l28 28v54H74V46h16Zm48 0v28h28M100 95h40M120 75v40"/>
+</svg>

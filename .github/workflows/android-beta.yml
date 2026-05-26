@@ -1,0 +1,61 @@
+name: Android Beta
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*-beta.*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-android:
+    name: Build Android debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.10.2"
+
+      - name: Validate WebView JavaScript
+        run: |
+          node --check node-web/node-connect.js
+          node --check composeApp/src/androidMain/assets/node-connect/node-connect.js
+          node --check composeApp/src/iosMain/resources/node-connect/node-connect.js
+
+      - name: Build debug APK
+        run: gradle --no-daemon --stacktrace :composeApp:assembleDebug
+
+      - name: Upload debug APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: miyo-debug-apk
+          path: composeApp/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+
+      - name: Publish beta release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Miyo ${{ github.ref_name }}
+          prerelease: true
+          generate_release_notes: true
+          files: composeApp/build/outputs/apk/debug/*.apk

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 96" role="img" aria-labelledby="title">
+  <title id="title">Dialogue node</title>
+  <rect x="1" y="1" width="158" height="94" rx="8" fill="#1b2029" stroke="#ff6f9d" stroke-width="2"/>
+  <path fill="none" stroke="#ff6f9d" stroke-width="5" stroke-linecap="round" d="M24 25h40M24 38h58"/>
+  <rect x="24" y="56" width="112" height="6" rx="3" fill="#3b4350"/>
+  <rect x="24" y="70" width="92" height="6" rx="3" fill="#3b4350"/>
+</svg>

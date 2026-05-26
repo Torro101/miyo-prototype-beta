@@ -1,0 +1,270 @@
+:root {
+  color-scheme: dark;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #0c0f13;
+  color: #f5f1ea;
+  --ink: #0c0f13;
+  --ink-soft: #141922;
+  --surface: #1b2029;
+  --surface-raised: #252b35;
+  --outline: #3b4350;
+  --text-secondary: #c9c5bf;
+  --muted: #8c9299;
+  --petal: #ff6f9d;
+  --lagoon: #4bc3c7;
+  --honey: #f0c96a;
+  --mint: #8fe3b0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    linear-gradient(135deg, rgba(36, 43, 53, 0.32) 1px, transparent 1px),
+    radial-gradient(circle, rgba(245, 241, 234, 0.08) 1px, transparent 1px),
+    var(--ink);
+  background-size: 96px 96px, 32px 32px;
+}
+
+.shell {
+  display: grid;
+  gap: 0.75rem;
+  min-height: 100vh;
+  padding: 0.75rem;
+  grid-template-rows: auto minmax(420px, 1fr) 112px;
+}
+
+.toolbar,
+.status {
+  border: 1px solid var(--outline);
+  border-radius: 8px;
+  background: rgba(27, 32, 41, 0.94);
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 62px;
+  padding: 0.8rem 1rem;
+}
+
+.toolbar-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.eyebrow {
+  margin: 0 0 0.2rem;
+  color: var(--petal);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+h1 {
+  font-size: 1.15rem;
+  line-height: 1.2;
+}
+
+button {
+  border: 0;
+  border-radius: 8px;
+  padding: 0.55rem 0.8rem;
+  background: var(--petal);
+  color: var(--ink);
+  font-weight: 700;
+}
+
+button:first-child {
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  border: 1px solid var(--outline);
+}
+
+.graph {
+  position: relative;
+  overflow: auto;
+  min-height: 420px;
+  border: 1px solid var(--outline);
+  border-radius: 8px;
+  background-image:
+    linear-gradient(rgba(245, 241, 234, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(245, 241, 234, 0.05) 1px, transparent 1px);
+  background-size: 32px 32px;
+  background-color: rgba(12, 15, 19, 0.94);
+}
+
+.graph-meta {
+  position: sticky;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 4;
+  display: inline-flex;
+  gap: 0.5rem;
+  padding: 0.35rem;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  pointer-events: none;
+}
+
+.graph-meta span {
+  border: 1px solid var(--outline);
+  border-radius: 999px;
+  background: rgba(20, 25, 34, 0.86);
+  padding: 0.25rem 0.55rem;
+}
+
+.edges,
+.node-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1600px;
+  height: 900px;
+}
+
+.edges {
+  pointer-events: none;
+}
+
+.node-layer {
+  z-index: 2;
+}
+
+.edge {
+  fill: none;
+  stroke-width: 3;
+  stroke-linecap: round;
+  opacity: 0.92;
+}
+
+.edge-label {
+  fill: var(--text-secondary);
+  font-size: 12px;
+  paint-order: stroke;
+  pointer-events: none;
+  stroke: var(--ink);
+  stroke-width: 4px;
+  text-anchor: middle;
+}
+
+.node {
+  --node-accent: var(--petal);
+  position: absolute;
+  width: 220px;
+  min-height: 116px;
+  padding: 0.8rem;
+  border: 1px solid var(--outline);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(37, 43, 53, 0.98), rgba(20, 25, 34, 0.98));
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.22);
+  touch-action: none;
+}
+
+.node.scene {
+  width: 210px;
+}
+
+.node.selected {
+  border-width: 2px;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--node-accent), transparent 72%);
+}
+
+.node-header {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.node-type {
+  color: var(--node-accent);
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.node h2 {
+  overflow: hidden;
+  color: #f5f1ea;
+  font-size: 0.98rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.node p {
+  display: -webkit-box;
+  overflow: hidden;
+  margin-top: 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.65rem;
+}
+
+.badges span {
+  border: 1px solid color-mix(in srgb, var(--node-accent), transparent 40%);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  padding: 0.15rem 0.45rem;
+}
+
+.port {
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: var(--node-accent);
+  transform: translateY(-50%);
+}
+
+.port.in {
+  left: -6px;
+}
+
+.port.out {
+  right: -6px;
+}
+
+.start .port.in {
+  display: none;
+}
+
+.status {
+  overflow: hidden;
+  padding: 0.75rem 1rem;
+}
+
+.status h2 {
+  margin-bottom: 0.4rem;
+  font-size: 0.92rem;
+}
+
+pre {
+  overflow: auto;
+  max-height: 58px;
+  margin: 0;
+  color: var(--text-secondary);
+  font: 0.78rem/1.35 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: pre-wrap;
+}
