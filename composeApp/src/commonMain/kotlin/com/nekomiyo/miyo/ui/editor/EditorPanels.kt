@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
@@ -28,7 +29,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,6 +37,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.nekomiyo.miyo.core.exporting.MiyoExportPlan
 import com.nekomiyo.miyo.core.exporting.MiyoExportPlanner
@@ -212,21 +213,27 @@ fun RuntimePreviewPanel(
         tint = MiyoColors.Mint,
         modifier = modifier
     ) {
-        Row(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
-                .weight(1f),
-            horizontalArrangement = Arrangement.spacedBy(MiyoSpacing.md)
+                .weight(1f)
         ) {
-            RuntimeStage(
-                preview = preview,
-                project = project,
-                modifier = Modifier.weight(1f).fillMaxHeight()
-            )
-            RuntimeTimeline(
-                preview = preview,
-                modifier = Modifier.width(320.dp).fillMaxHeight()
-            )
+            val compact = maxHeight < 340.dp || maxWidth < 760.dp
+            Row(
+                modifier = Modifier.fillMaxSize(),
+                horizontalArrangement = Arrangement.spacedBy(if (compact) MiyoSpacing.sm else MiyoSpacing.md)
+            ) {
+                RuntimeStage(
+                    preview = preview,
+                    project = project,
+                    stageHeight = if (compact) 170.dp else 300.dp,
+                    modifier = Modifier.weight(1f).fillMaxHeight()
+                )
+                RuntimeTimeline(
+                    preview = preview,
+                    modifier = Modifier.width(if (compact) 280.dp else 320.dp).fillMaxHeight()
+                )
+            }
         }
     }
 }
@@ -235,6 +242,7 @@ fun RuntimePreviewPanel(
 private fun RuntimeStage(
     preview: MiyoRuntimePreviewState,
     project: MiyoProject,
+    stageHeight: Dp,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -244,7 +252,7 @@ private fun RuntimeStage(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(330.dp)
+                .height(stageHeight)
                 .clip(RoundedCornerShape(MiyoRadius.lg))
                 .background(Color.Black)
                 .border(MiyoStroke.hairline, MiyoColors.Outline, RoundedCornerShape(MiyoRadius.lg))
@@ -435,9 +443,9 @@ private fun SimpleTabRow(
     ) {
         SimpleEditorTab.entries.forEach { tab ->
             val selected = tab == selectedTab
-            TextButton(
-                onClick = { onTabSelected(tab) },
+            Box(
                 modifier = Modifier
+                    .height(34.dp)
                     .clip(RoundedCornerShape(MiyoRadius.lg))
                     .background(if (selected) MiyoColors.Petal.copy(alpha = 0.16f) else MiyoColors.InkSoft)
                     .border(
@@ -445,6 +453,9 @@ private fun SimpleTabRow(
                         if (selected) MiyoColors.Petal.copy(alpha = 0.56f) else MiyoColors.Outline,
                         RoundedCornerShape(MiyoRadius.lg)
                     )
+                    .clickable { onTabSelected(tab) }
+                    .padding(horizontal = MiyoSpacing.sm),
+                contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = tab.label,
@@ -468,47 +479,53 @@ private fun TimelineEditor(
         .firstOrNull { it.id == selectedSceneId }
         ?: project.selectedScene()
 
-    Row(
-        modifier = Modifier.fillMaxSize(),
-        horizontalArrangement = Arrangement.spacedBy(MiyoSpacing.md)
-    ) {
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(MiyoSpacing.md)
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val compact = maxHeight < 340.dp || maxWidth < 760.dp
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            horizontalArrangement = Arrangement.spacedBy(if (compact) MiyoSpacing.sm else MiyoSpacing.md)
         ) {
-            ScenePreview(project = project, scene = scene)
-            ActionPalette()
-        }
-        Column(
-            modifier = Modifier
-                .width(340.dp)
-                .fillMaxHeight()
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(MiyoSpacing.sm)
-        ) {
-            Text(
-                text = scene?.title ?: "No scene selected",
-                color = MiyoColors.TextPrimary,
-                style = MaterialTheme.typography.titleMedium
-            )
-            scene?.actions.orEmpty().forEach { action ->
-                ActionRow(
-                    project = project,
-                    action = action,
-                    selected = action.id == selectedActionId,
-                    onClick = { onActionSelected(action.id) }
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(if (compact) MiyoSpacing.sm else MiyoSpacing.md)
+            ) {
+                ScenePreview(project = project, scene = scene, height = if (compact) 150.dp else 240.dp)
+                if (!compact) {
+                    ActionPalette()
+                }
+            }
+            Column(
+                modifier = Modifier
+                    .width(if (compact) 300.dp else 340.dp)
+                    .fillMaxHeight()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(MiyoSpacing.xs)
+            ) {
+                Text(
+                    text = scene?.title ?: "No scene selected",
+                    color = MiyoColors.TextPrimary,
+                    style = MaterialTheme.typography.titleMedium
                 )
+                scene?.actions.orEmpty().forEach { action ->
+                    ActionRow(
+                        project = project,
+                        action = action,
+                        compact = compact,
+                        selected = action.id == selectedActionId,
+                        onClick = { onActionSelected(action.id) }
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun ScenePreview(project: MiyoProject, scene: StoryScene?) {
+private fun ScenePreview(project: MiyoProject, scene: StoryScene?, height: Dp = 220.dp) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(260.dp)
+            .height(height)
             .clip(RoundedCornerShape(MiyoRadius.lg))
             .background(Color.Black)
             .border(MiyoStroke.hairline, MiyoColors.Outline, RoundedCornerShape(MiyoRadius.lg))
@@ -581,6 +598,7 @@ private fun PaletteButton(icon: ImageVector, label: String, tint: Color) {
 private fun ActionRow(
     project: MiyoProject,
     action: SceneAction,
+    compact: Boolean = false,
     selected: Boolean,
     onClick: () -> Unit
 ) {
@@ -596,17 +614,17 @@ private fun ActionRow(
                 shape = RoundedCornerShape(MiyoRadius.lg)
             )
             .clickable(onClick = onClick)
-            .padding(MiyoSpacing.md),
+            .padding(if (compact) MiyoSpacing.sm else MiyoSpacing.md),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
-                .size(38.dp)
+                .size(if (compact) 30.dp else 38.dp)
                 .clip(RoundedCornerShape(MiyoRadius.md))
                 .background(tint.copy(alpha = 0.16f)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(action.icon(), contentDescription = null, tint = tint, modifier = Modifier.size(21.dp))
+            Icon(action.icon(), contentDescription = null, tint = tint, modifier = Modifier.size(if (compact) 17.dp else 21.dp))
         }
         Spacer(Modifier.width(MiyoSpacing.md))
         Column(verticalArrangement = Arrangement.spacedBy(MiyoSpacing.xs)) {
@@ -740,7 +758,7 @@ private fun GuiEditor(project: MiyoProject) {
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(MiyoSpacing.md)
     ) {
-        ScenePreview(project = project, scene = project.selectedScene())
+        ScenePreview(project = project, scene = project.selectedScene(), height = 220.dp)
         SectionHeader("Message box")
         SettingRow("Font family", project.guiTheme.fontFamily)
         SliderRow("Font size", project.guiTheme.fontSize.toFloat(), 12f..32f)
@@ -818,11 +836,12 @@ private fun WorkspacePanel(
 ) {
     MiyoPanel(
         modifier = modifier.fillMaxHeight(),
-        containerColor = MiyoColors.Surface.copy(alpha = 0.96f)
+        containerColor = MiyoColors.Surface,
+        contentPadding = PaddingValues(MiyoSpacing.sm)
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(MiyoSpacing.md)
+            verticalArrangement = Arrangement.spacedBy(MiyoSpacing.sm)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),

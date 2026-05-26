@@ -22,7 +22,7 @@ enum class MiyoRoute {
 enum class EditorMode(val label: String) {
     Simple("Simple"),
     Preview("Preview"),
-    NodeConnect("Node Connect"),
+    NodeConnect("Nodes"),
     Code("Code")
 }
 

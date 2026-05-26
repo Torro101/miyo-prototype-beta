@@ -5,16 +5,20 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -28,6 +32,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.nekomiyo.miyo.core.model.ProjectSummary
 import com.nekomiyo.miyo.ui.design.MiyoIcons
@@ -47,21 +52,32 @@ fun HubScreen(
     onOpenProject: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
             .miyoPatternBackground()
-            .padding(MiyoSpacing.lg)
+            .padding(horizontal = MiyoSpacing.md, vertical = MiyoSpacing.sm)
     ) {
+        val compact = maxWidth < 520.dp
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .widthIn(max = 680.dp)
-                .align(Alignment.TopCenter),
-            verticalArrangement = Arrangement.spacedBy(MiyoSpacing.md)
+                .align(Alignment.TopCenter)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(if (compact) MiyoSpacing.sm else MiyoSpacing.md)
         ) {
-            HubHeader()
+            HubHeader(compact = compact)
             SectionTitle("Library", "${projects.size} local projects")
+            if (compact) {
+                Button(
+                    onClick = onCreateProject,
+                    colors = ButtonDefaults.buttonColors(containerColor = MiyoColors.Petal, contentColor = MiyoColors.Ink)
+                ) {
+                    Icon(MiyoIcons.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Text("New project")
+                }
+            }
             projects.forEachIndexed { index, project ->
                 ProjectCard(
                     project = project,
@@ -69,23 +85,24 @@ fun HubScreen(
                     onOpenProject = onOpenProject
                 )
             }
-            SectionTitle("Workshop", "Create and import")
-            WorkshopRow(onCreateProject = onCreateProject)
-            Spacer(Modifier.weight(1f))
-            HubNav()
+            if (!compact) {
+                SectionTitle("Workshop", "Create and import")
+                WorkshopRow(onCreateProject = onCreateProject)
+                HubNav()
+            }
         }
     }
 }
 
 @Composable
-private fun HubHeader() {
+private fun HubHeader(compact: Boolean) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            MiyoLogo(size = 54.dp)
+            MiyoLogo(size = if (compact) 42.dp else 54.dp)
             Spacer(Modifier.width(MiyoSpacing.sm))
             Column {
                 Text(
@@ -101,9 +118,11 @@ private fun HubHeader() {
                 )
             }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(MiyoSpacing.xs)) {
-            HeaderButton(icon = MiyoIcons.Import, label = "Import")
-            HeaderButton(icon = MiyoIcons.Settings, label = "Settings")
+        if (!compact) {
+            Row(horizontalArrangement = Arrangement.spacedBy(MiyoSpacing.xs)) {
+                HeaderButton(icon = MiyoIcons.Import, label = "Import")
+                HeaderButton(icon = MiyoIcons.Settings, label = "Settings")
+            }
         }
     }
 }
@@ -151,8 +170,9 @@ private fun ProjectCard(
     MiyoPanel(
         modifier = Modifier
             .fillMaxWidth()
+            .height(132.dp)
             .clickable { onOpenProject(project.projectId) },
-        containerColor = MiyoColors.SurfaceRaised.copy(alpha = 0.94f)
+        containerColor = MiyoColors.SurfaceRaised
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -161,7 +181,14 @@ private fun ProjectCard(
             ProjectThumbnail(accent)
             Spacer(Modifier.width(MiyoSpacing.md))
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(MiyoSpacing.xs)) {
-                Text(project.title, color = MiyoColors.TextPrimary, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = project.title,
+                    color = MiyoColors.TextPrimary,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
                 Text(project.meta, color = MiyoColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
                 Row(horizontalArrangement = Arrangement.spacedBy(MiyoSpacing.xs)) {
                     MiyoPill(project.autosaveLabel, containerColor = MiyoColors.InkSoft, contentColor = MiyoColors.Mint)
@@ -177,8 +204,7 @@ private fun ProjectCard(
                     contentColor = MiyoColors.Ink
                 )
             ) {
-                Icon(MiyoIcons.Preview, contentDescription = null, modifier = Modifier.size(17.dp))
-                Spacer(Modifier.width(MiyoSpacing.xs))
+                Icon(MiyoIcons.Preview, contentDescription = null, modifier = Modifier.size(16.dp))
                 Text("Open")
             }
         }
@@ -189,7 +215,7 @@ private fun ProjectCard(
 private fun ProjectThumbnail(accent: Color) {
     Box(
         modifier = Modifier
-            .size(76.dp, 96.dp)
+            .size(72.dp)
             .clip(RoundedCornerShape(MiyoRadius.lg))
             .background(MiyoColors.InkSoft)
             .border(MiyoStroke.hairline, accent.copy(alpha = 0.7f), RoundedCornerShape(MiyoRadius.lg)),
@@ -197,7 +223,7 @@ private fun ProjectThumbnail(accent: Color) {
     ) {
         Box(
             modifier = Modifier
-                .size(46.dp)
+                .size(38.dp)
                 .clip(RoundedCornerShape(MiyoRadius.md))
                 .background(accent.copy(alpha = 0.18f)),
             contentAlignment = Alignment.Center

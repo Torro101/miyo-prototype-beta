@@ -33,6 +33,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.nekomiyo.miyo.core.model.AssetKind
 import com.nekomiyo.miyo.core.model.MiyoProject
@@ -80,11 +81,14 @@ fun EditorShell(
             .fillMaxSize()
             .miyoPatternBackground(baseColor = MiyoColors.InkSoft)
     ) {
-        val showSidePanels = maxWidth >= 920.dp
+        val compactEditor = maxHeight < 560.dp || maxWidth < 760.dp
+        val showSidePanels = maxWidth >= 1120.dp && !compactEditor
+        val chromePadding = if (compactEditor) MiyoSpacing.xs else MiyoSpacing.md
         Row(modifier = Modifier.fillMaxSize()) {
             EditorRail(
                 selectedMode = selectedMode,
                 simpleTab = simpleTab,
+                compact = compactEditor,
                 onModeSelected = onModeSelected,
                 onAssetKindSelected = onAssetKindSelected,
                 onBackToHub = onBackToHub
@@ -92,20 +96,23 @@ fun EditorShell(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(MiyoSpacing.md),
-                verticalArrangement = Arrangement.spacedBy(MiyoSpacing.sm)
+                    .padding(chromePadding),
+                verticalArrangement = Arrangement.spacedBy(if (compactEditor) MiyoSpacing.xs else MiyoSpacing.sm)
             ) {
                 EditorTopBar(
                     project = project,
                     diagnostics = diagnostics,
                     selectedBlockId = selectedBlockId,
                     selectedSceneId = selectedSceneId,
+                    compact = compactEditor,
                     onPreviewRequested = { onModeSelected(EditorMode.Preview) }
                 )
-                ModeTabs(
-                    selectedMode = selectedMode,
-                    onModeSelected = onModeSelected
-                )
+                if (!compactEditor) {
+                    ModeTabs(
+                        selectedMode = selectedMode,
+                        onModeSelected = onModeSelected
+                    )
+                }
                 if (showSidePanels) {
                     Row(
                         modifier = Modifier.weight(1f),
@@ -156,7 +163,7 @@ fun EditorShell(
                         modifier = Modifier.weight(1f)
                     )
                 }
-                OutputDrawer(diagnostics)
+                OutputDrawer(diagnostics = diagnostics, compact = compactEditor)
             }
         }
     }
@@ -206,6 +213,7 @@ private fun EditorWorkspace(
 private fun EditorRail(
     selectedMode: EditorMode,
     simpleTab: SimpleEditorTab,
+    compact: Boolean,
     onModeSelected: (EditorMode) -> Unit,
     onAssetKindSelected: (AssetKind) -> Unit,
     onBackToHub: () -> Unit,
@@ -214,29 +222,29 @@ private fun EditorRail(
     Column(
         modifier = modifier
             .fillMaxHeight()
-            .width(76.dp)
+            .width(if (compact) 54.dp else 76.dp)
             .background(MiyoColors.Ink)
             .border(MiyoStroke.hairline, MiyoColors.Outline)
-            .padding(vertical = MiyoSpacing.md, horizontal = MiyoSpacing.xs),
+            .padding(vertical = if (compact) MiyoSpacing.xs else MiyoSpacing.md, horizontal = MiyoSpacing.xs),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(MiyoSpacing.xs)
+        verticalArrangement = Arrangement.spacedBy(if (compact) MiyoSpacing.xxs else MiyoSpacing.xs)
     ) {
-        MiyoLogo(size = 44.dp)
-        Spacer(modifier = Modifier.height(MiyoSpacing.md))
-        RailButton(MiyoIcons.Timeline, "Scenes", selected = selectedMode == EditorMode.Simple && simpleTab == SimpleEditorTab.Timeline) {
+        MiyoLogo(size = if (compact) 34.dp else 44.dp)
+        Spacer(modifier = Modifier.height(if (compact) MiyoSpacing.xs else MiyoSpacing.md))
+        RailButton(MiyoIcons.Timeline, "Scenes", compact = compact, selected = selectedMode == EditorMode.Simple && simpleTab == SimpleEditorTab.Timeline) {
             onModeSelected(EditorMode.Simple)
         }
-        RailButton(MiyoIcons.Assets, "Assets", selected = selectedMode == EditorMode.Simple && simpleTab.assetKind != null) {
+        RailButton(MiyoIcons.Assets, "Assets", compact = compact, selected = selectedMode == EditorMode.Simple && simpleTab.assetKind != null) {
             onModeSelected(EditorMode.Simple)
             onAssetKindSelected(AssetKind.Character)
         }
-        RailButton(MiyoIcons.Preview, "Preview", selected = selectedMode == EditorMode.Preview) {
+        RailButton(MiyoIcons.Preview, "Preview", compact = compact, selected = selectedMode == EditorMode.Preview) {
             onModeSelected(EditorMode.Preview)
         }
-        RailButton(MiyoIcons.NodeMode, "Node Connect", selected = selectedMode == EditorMode.NodeConnect) {
+        RailButton(MiyoIcons.NodeMode, "Node Connect", compact = compact, selected = selectedMode == EditorMode.NodeConnect) {
             onModeSelected(EditorMode.NodeConnect)
         }
-        RailButton(MiyoIcons.CodeMode, "Code", selected = selectedMode == EditorMode.Code) {
+        RailButton(MiyoIcons.CodeMode, "Code", compact = compact, selected = selectedMode == EditorMode.Code) {
             onModeSelected(EditorMode.Code)
         }
         Spacer(modifier = Modifier.weight(1f))
@@ -256,13 +264,14 @@ private fun EditorRail(
 private fun RailButton(
     icon: ImageVector,
     label: String,
+    compact: Boolean,
     selected: Boolean = false,
     onClick: () -> Unit
 ) {
     val tint = if (selected) MiyoColors.Petal else MiyoColors.TextMuted
     Box(
         modifier = Modifier
-            .size(48.dp)
+            .size(if (compact) 38.dp else 48.dp)
             .clip(RoundedCornerShape(MiyoRadius.lg))
             .background(if (selected) MiyoColors.Petal.copy(alpha = 0.14f) else Color.Transparent)
             .border(
@@ -273,7 +282,7 @@ private fun RailButton(
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        Icon(icon, contentDescription = label, tint = tint)
+        Icon(icon, contentDescription = label, tint = tint, modifier = Modifier.size(if (compact) 20.dp else 24.dp))
     }
 }
 
@@ -283,6 +292,7 @@ private fun EditorTopBar(
     diagnostics: List<MiyoDiagnostic>,
     selectedBlockId: String?,
     selectedSceneId: String?,
+    compact: Boolean,
     onPreviewRequested: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -292,38 +302,51 @@ private fun EditorTopBar(
 
     MiyoPanel(
         modifier = modifier.fillMaxWidth(),
-        containerColor = MiyoColors.SurfaceRaised.copy(alpha = 0.96f),
-        contentPadding = PaddingValues(MiyoSpacing.sm)
+        containerColor = MiyoColors.SurfaceRaised,
+        contentPadding = PaddingValues(
+            horizontal = if (compact) MiyoSpacing.sm else MiyoSpacing.md,
+            vertical = if (compact) MiyoSpacing.xs else MiyoSpacing.sm
+        )
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                ProjectDot(accent)
+            Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                ProjectDot(accent, compact = compact)
                 Spacer(Modifier.width(MiyoSpacing.sm))
                 Column {
                     Text(
                         text = project.displayTitle(),
                         color = MiyoColors.TextPrimary,
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                     Text(
                         text = "${block?.label ?: "No chapter"} / ${scene?.title ?: "No scene"}",
                         color = MiyoColors.TextMuted,
-                        style = MaterialTheme.typography.bodySmall
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(MiyoSpacing.xs), verticalAlignment = Alignment.CenterVertically) {
-                MiyoPill(project.editor.autosaveLabel, icon = MiyoIcons.Export, contentColor = MiyoColors.Mint)
-                if (diagnostics.isNotEmpty()) {
+                if (!compact) {
+                    MiyoPill(project.editor.autosaveLabel, icon = MiyoIcons.Export, contentColor = MiyoColors.Mint)
+                }
+                if (diagnostics.isNotEmpty() && !compact) {
                     MiyoPill("${diagnostics.size} diagnostics", icon = MiyoIcons.Warning, contentColor = MiyoColors.Honey)
                 }
                 Button(
                     onClick = onPreviewRequested,
+                    contentPadding = PaddingValues(
+                        horizontal = if (compact) MiyoSpacing.sm else MiyoSpacing.lg,
+                        vertical = if (compact) MiyoSpacing.xs else MiyoSpacing.sm
+                    ),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = accent,
                         contentColor = MiyoColors.Ink
@@ -339,16 +362,16 @@ private fun EditorTopBar(
 }
 
 @Composable
-private fun ProjectDot(color: Color) {
+private fun ProjectDot(color: Color, compact: Boolean) {
     Box(
         modifier = Modifier
-            .size(36.dp)
+            .size(if (compact) 30.dp else 36.dp)
             .clip(RoundedCornerShape(MiyoRadius.md))
             .background(color.copy(alpha = 0.16f))
             .border(MiyoStroke.hairline, color.copy(alpha = 0.58f), RoundedCornerShape(MiyoRadius.md)),
         contentAlignment = Alignment.Center
     ) {
-        Icon(MiyoIcons.Timeline, contentDescription = null, tint = color, modifier = Modifier.size(20.dp))
+        Icon(MiyoIcons.Timeline, contentDescription = null, tint = color, modifier = Modifier.size(if (compact) 17.dp else 20.dp))
     }
 }
 
@@ -498,7 +521,7 @@ private fun InspectorField(label: String, value: String) {
 }
 
 @Composable
-private fun OutputDrawer(diagnostics: List<MiyoDiagnostic>) {
+private fun OutputDrawer(diagnostics: List<MiyoDiagnostic>, compact: Boolean) {
     val firstDiagnostic = diagnostics.firstOrNull()
     val tint = when (firstDiagnostic?.severity) {
         DiagnosticSeverity.Error -> MiyoColors.Danger
@@ -510,13 +533,13 @@ private fun OutputDrawer(diagnostics: List<MiyoDiagnostic>) {
     MiyoPanel(
         modifier = Modifier
             .fillMaxWidth()
-            .height(78.dp),
-        containerColor = MiyoColors.Ink.copy(alpha = 0.98f),
-        contentPadding = PaddingValues(MiyoSpacing.sm)
+            .height(if (compact) 46.dp else 78.dp),
+        containerColor = MiyoColors.Ink,
+        contentPadding = PaddingValues(horizontal = MiyoSpacing.sm, vertical = if (compact) MiyoSpacing.xs else MiyoSpacing.sm)
     ) {
         Row(
             modifier = Modifier.fillMaxSize(),
-            horizontalArrangement = Arrangement.spacedBy(MiyoSpacing.lg),
+            horizontalArrangement = Arrangement.spacedBy(if (compact) MiyoSpacing.sm else MiyoSpacing.lg),
             verticalAlignment = Alignment.CenterVertically
         ) {
             MiyoIconLabel(
@@ -531,7 +554,9 @@ private fun OutputDrawer(diagnostics: List<MiyoDiagnostic>) {
                 style = MaterialTheme.typography.bodySmall
             )
             Spacer(Modifier.weight(1f))
-            MiyoPill("Output", icon = MiyoIcons.CodeMode)
+            if (!compact) {
+                MiyoPill("Output", icon = MiyoIcons.CodeMode)
+            }
         }
     }
 }
