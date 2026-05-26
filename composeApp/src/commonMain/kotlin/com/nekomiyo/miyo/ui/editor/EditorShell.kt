@@ -98,6 +98,7 @@ fun EditorShell(
                 onModeSelected = onModeSelected,
                 onSimpleTabSelected = onSimpleTabSelected,
                 onAssetKindSelected = onAssetKindSelected,
+                onSceneSelected = onSceneSelected,
                 onBackToHub = onBackToHub
             )
             Column(
@@ -198,6 +199,7 @@ private fun EditorSidebar(
     onModeSelected: (EditorMode) -> Unit,
     onSimpleTabSelected: (SimpleEditorTab) -> Unit,
     onAssetKindSelected: (AssetKind) -> Unit,
+    onSceneSelected: (String, String) -> Unit,
     onBackToHub: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -241,6 +243,16 @@ private fun EditorSidebar(
                 onModeSelected(EditorMode.Edit)
                 onSimpleTabSelected(SimpleEditorTab.Timeline)
             }
+            StoryNavigator(
+                project = project,
+                selectedBlockId = selectedBlockId,
+                selectedSceneId = selectedSceneId,
+                onSelectScene = { blockId, sceneId ->
+                    onModeSelected(EditorMode.Edit)
+                    onSimpleTabSelected(SimpleEditorTab.Timeline)
+                    onSceneSelected(blockId, sceneId)
+                }
+            )
 
             SidebarSection("Logic")
             SidebarItem(MiyoIcons.Settings, "Variables", simpleTab == SimpleEditorTab.Variables) {
@@ -282,6 +294,89 @@ private fun EditorSidebar(
         }
         SidebarStatus(project = project, selectedBlockId = selectedBlockId, selectedSceneId = selectedSceneId)
         SidebarItem(MiyoIcons.Back, "Home", false, onClick = onBackToHub)
+    }
+}
+
+@Composable
+private fun StoryNavigator(
+    project: MiyoProject,
+    selectedBlockId: String?,
+    selectedSceneId: String?,
+    onSelectScene: (String, String) -> Unit
+) {
+    SidebarSection("Volume")
+    NavigatorRow(
+        label = "Volume 1",
+        detail = project.displayTitle(),
+        icon = MiyoIcons.Library,
+        selected = false,
+        enabled = false,
+        depth = 0
+    )
+    project.story.blocks.forEachIndexed { index, block ->
+        val blockSelected = block.id == selectedBlockId
+        NavigatorRow(
+            label = "Chapter ${index + 1}",
+            detail = block.label,
+            icon = MiyoIcons.Timeline,
+            selected = blockSelected,
+            depth = 1,
+            onClick = {
+                block.scenes.firstOrNull()?.let { scene ->
+                    onSelectScene(block.id, scene.id)
+                }
+            }
+        )
+        block.scenes.forEachIndexed { sceneIndex, scene ->
+            NavigatorRow(
+                label = "Scene ${sceneIndex + 1}",
+                detail = scene.title,
+                icon = MiyoIcons.TextAction,
+                selected = block.id == selectedBlockId && scene.id == selectedSceneId,
+                depth = 2,
+                onClick = { onSelectScene(block.id, scene.id) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun NavigatorRow(
+    label: String,
+    detail: String,
+    icon: ImageVector,
+    selected: Boolean,
+    enabled: Boolean = true,
+    depth: Int,
+    onClick: () -> Unit = {}
+) {
+    val color = when {
+        selected -> MiyoColors.Petal
+        enabled -> MiyoColors.TextSecondary
+        else -> MiyoColors.TextMuted
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(38.dp)
+            .clip(RoundedCornerShape(MiyoRadius.md))
+            .background(if (selected) MiyoColors.Petal.copy(alpha = 0.13f) else Color.Transparent)
+            .border(
+                MiyoStroke.hairline,
+                if (selected) MiyoColors.Petal.copy(alpha = 0.46f) else Color.Transparent,
+                RoundedCornerShape(MiyoRadius.md)
+            )
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(start = MiyoSpacing.xs + (depth * 10).dp, end = MiyoSpacing.xs),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(15.dp))
+        Spacer(Modifier.width(MiyoSpacing.xs))
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(MiyoSpacing.xxs)) {
+            Text(label, color = color, style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(detail, color = MiyoColors.TextMuted, style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        Text(">", color = MiyoColors.TextMuted, style = MaterialTheme.typography.labelMedium)
     }
 }
 
@@ -603,7 +698,7 @@ private fun EditorContextBar(
             horizontalArrangement = Arrangement.spacedBy(if (compact) MiyoSpacing.sm else MiyoSpacing.lg),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            MiyoPill("Vol 100%", icon = MiyoIcons.SoundAction, contentColor = MiyoColors.Lagoon)
+            MiyoPill("Volume 1", icon = MiyoIcons.Library, contentColor = MiyoColors.Lagoon)
             MiyoPill(block?.label ?: "Chapter", icon = MiyoIcons.Timeline, contentColor = MiyoColors.Petal)
             MiyoPill(scene?.title ?: "Scene", icon = MiyoIcons.TextAction, contentColor = MiyoColors.Mint)
             MiyoPill(simpleTab.label, icon = MiyoIcons.Inspector, contentColor = MiyoColors.TextSecondary)
